@@ -29,20 +29,33 @@ if ($roleSlug === ROLE_SUPER_ADMIN || $roleSlug === ROLE_ADMIN) {
 // Fetch active products with prices and stock in default warehouse
 $productsQuery = "
     SELECT p.id, p.code, p.name, p.trade_price, p.wholesale_price, p.retail_price, p.min_sale_price,
-           p.base_unit_id, u.name as unit_name,
+           p.base_unit_id, u.name as unit_name, u.code as unit_code,
            COALESCE(SUM(sl.quantity_in) - SUM(sl.quantity_out), 0) as current_stock
     FROM `products` p
     JOIN `units` u ON p.base_unit_id = u.id
     LEFT JOIN `stock_ledger` sl ON p.id = sl.product_id
     WHERE p.status = 'active'
-    GROUP BY p.id, p.code, p.name, p.trade_price, p.wholesale_price, p.retail_price, p.min_sale_price, p.base_unit_id, u.name
+    GROUP BY p.id, p.code, p.name, p.trade_price, p.wholesale_price, p.retail_price, p.min_sale_price, p.base_unit_id, u.name, u.code
     ORDER BY p.name ASC
 ";
 $products = $pdo->query($productsQuery)->fetchAll();
 
+// Fetch units and unit conversions for multi-tier unit selection in order booking
+$allUnits = $pdo->query("SELECT id, name, code, is_base FROM `units` ORDER BY is_base DESC, id ASC")->fetchAll();
+$allConversions = $pdo->query("
+    SELECT uc.*, u1.name as from_name, u1.code as from_code, u2.name as to_name, u2.code as to_code 
+    FROM `unit_conversions` uc
+    JOIN `units` u1 ON uc.from_unit_id = u1.id
+    JOIN `units` u2 ON uc.to_unit_id = u2.id
+")->fetchAll();
+
 // Handle Server-Side POST submission when online
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $customerId = (int)($_POST['customer_id'] ?? 0);
+    $priceTier = sanitize($_POST['price_tier'] ?? 'trade_price');
+    if (!in_array($priceTier, ['trade_price', 'wholesale_price', 'retail_price'])) {
+        $priceTier = 'trade_price';
+    }
     $orderDate = $_POST['order_date'] ?? date('Y-m-d');
     $deliveryDate = !empty($_POST['delivery_date']) ? $_POST['delivery_date'] : null;
     $notes = sanitize($_POST['notes'] ?? '');
@@ -122,13 +135,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             INSERT INTO `sales_orders` (
                 `order_number`, `customer_id`, `order_booker_id`, `area_id`, 
                 `order_date`, `delivery_date`, `subtotal`, `discount_amount`, 
-                `tax_amount`, `grand_total`, `status`, `payment_type`, `notes`, `created_at`
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'submitted', 'credit', ?, NOW())
+                `tax_amount`, `grand_total`, `status`, `payment_type`, `price_tier`, `notes`, `created_at`
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'submitted', 'credit', ?, ?, NOW())
         ");
         $orderStmt->execute([
             $orderNumber, $customerId, $bookerId, $customer['area_id'],
             $orderDate, $deliveryDate, $subtotal, $orderDiscount,
-            $taxAmount, $grandTotal, $notes
+            $taxAmount, $grandTotal, $priceTier, $notes
         ]);
         $orderId = (int)$pdo->lastInsertId();
 
@@ -229,6 +242,19 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
                         </div>
                     </div>
 
+                    <!-- Price Tier Selection (Trade Price, Wholesale, Retail) -->
+                    <div class="mb-3">
+                        <label for="price_tier" class="form-label small fw-bold text-dark">
+                            <i class="bi bi-tag-fill text-primary me-1"></i> Order Pricing Tier / ریٹ کی قسم
+                        </label>
+                        <select class="form-select form-select-sm fw-bold border-primary text-primary" id="price_tier" name="price_tier">
+                            <option value="trade_price" selected>Trade Price (TP) - ٹریڈ ریٹ (Standard)</option>
+                            <option value="wholesale_price">Wholesale Price - ہول سیل ریٹ (Bulk Discount)</option>
+                            <option value="retail_price">Retail Price (MRP) - ریٹیل پرائس (Full Price)</option>
+                        </select>
+                        <small class="text-muted" style="font-size: 0.72rem;">Changing rate tier recalculates rates for all products</small>
+                    </div>
+
                     <div class="row g-2">
                         <div class="col-6">
                             <label for="order_date" class="form-label small fw-semibold">Order Date</label>
@@ -268,12 +294,13 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
                         <table class="table table-bordered table-sm align-middle" id="order-items-table">
                             <thead class="table-light small">
                                 <tr>
-                                    <th style="min-width: 170px;">Product</th>
-                                    <th style="width: 85px;">Qty</th>
-                                    <th style="width: 100px;">Rate (Rs)</th>
-                                    <th style="width: 75px;">Disc</th>
+                                    <th style="min-width: 170px;">Product / پروڈکٹ</th>
+                                    <th style="width: 110px;">Packaging Unit / یونٹ</th>
+                                    <th style="width: 80px;">Qty / تعداد</th>
+                                    <th style="width: 105px;">Rate (Rs)</th>
+                                    <th style="width: 70px;">Disc</th>
                                     <th style="width: 95px;">Total</th>
-                                    <th style="width: 40px;"></th>
+                                    <th style="width: 35px;"></th>
                                 </tr>
                             </thead>
                             <tbody id="items-container">
@@ -307,18 +334,46 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
     </div>
 </form>
 
-<!-- Pre-cached Products Data for Instant Autocomplete & Offline Operation -->
+<!-- Pre-cached Products & Units Data for Instant Autocomplete & Offline Operation -->
 <script>
 const cachedProducts = <?= json_encode($products, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
 const customersData = <?= json_encode($customers, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
+const allUnits = <?= json_encode($allUnits, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
+const allConversions = <?= json_encode($allConversions, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
 
 document.addEventListener('DOMContentLoaded', function () {
     const customerSelect = document.getElementById('customer_id');
     const custInfoBox = document.getElementById('customer-info-box');
+    const priceTierSelect = document.getElementById('price_tier');
     const itemsContainer = document.getElementById('items-container');
     const btnAddItem = document.getElementById('btn-add-item');
     const dispSubtotal = document.getElementById('disp-subtotal');
     const dispGrandTotal = document.getElementById('disp-grand-total');
+
+    // Unit Multiplier Resolver
+    function getUnitMultiplier(fromUnitId, toUnitId) {
+        fromUnitId = parseInt(fromUnitId);
+        toUnitId = parseInt(toUnitId);
+        if (fromUnitId === toUnitId) return 1.0;
+
+        // Direct rule
+        let direct = allConversions.find(c => parseInt(c.from_unit_id) === fromUnitId && parseInt(c.to_unit_id) === toUnitId);
+        if (direct) return parseFloat(direct.multiplier);
+
+        // Reverse rule
+        let rev = allConversions.find(c => parseInt(c.from_unit_id) === toUnitId && parseInt(c.to_unit_id) === fromUnitId);
+        if (rev && parseFloat(rev.multiplier) > 0) return 1.0 / parseFloat(rev.multiplier);
+
+        // 2-step chain (e.g. Carton -> Box -> Piece)
+        let step1 = allConversions.filter(c => parseInt(c.from_unit_id) === fromUnitId);
+        for (let s1 of step1) {
+            let step2 = allConversions.find(c => parseInt(c.from_unit_id) === parseInt(s1.to_unit_id) && parseInt(c.to_unit_id) === toUnitId);
+            if (step2) {
+                return parseFloat(s1.multiplier) * parseFloat(step2.multiplier);
+            }
+        }
+        return 1.0;
+    }
 
     // Customer Selection Change -> update financial preview
     customerSelect.addEventListener('change', function () {
@@ -337,6 +392,42 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
+    // When Global Price Tier changes -> update all rows
+    priceTierSelect.addEventListener('change', function () {
+        document.querySelectorAll('.item-row').forEach(row => {
+            updateRowPriceFromTier(row);
+            recalcRow(row);
+        });
+    });
+
+    function updateRowPriceFromTier(row) {
+        const sel = row.querySelector('.prod-select');
+        const unitSel = row.querySelector('.prod-unit-select');
+        const priceInput = row.querySelector('.item-price');
+        const helperBadge = row.querySelector('.rate-tier-badge');
+
+        const pId = sel.value;
+        if (!pId) return;
+
+        const prod = cachedProducts.find(p => p.id == pId);
+        if (!prod) return;
+
+        const tier = priceTierSelect.value;
+        let baseRate = parseFloat(prod[tier] || prod.trade_price);
+        const multiplier = getUnitMultiplier(unitSel.value, prod.base_unit_id);
+        const finalRate = baseRate * multiplier;
+
+        priceInput.value = finalRate.toFixed(2);
+
+        // Update rate hints helper
+        if (helperBadge) {
+            const tp = (parseFloat(prod.trade_price) * multiplier).toFixed(1);
+            const ws = (parseFloat(prod.wholesale_price) * multiplier).toFixed(1);
+            const rtl = (parseFloat(prod.retail_price) * multiplier).toFixed(1);
+            helperBadge.innerHTML = `TP:${tp} | WS:${ws} | MRP:${rtl}`;
+        }
+    }
+
     // Add Item Row Function
     function addItemRow(defaultProdId = null) {
         const row = document.createElement('tr');
@@ -345,7 +436,13 @@ document.addEventListener('DOMContentLoaded', function () {
         let prodOptions = '<option value="">-- Choose Item --</option>';
         cachedProducts.forEach(p => {
             const isSelected = defaultProdId && p.id == defaultProdId ? 'selected' : '';
-            prodOptions += `<option value="${p.id}" data-price="${p.trade_price}" data-unit="${p.base_unit_id}" data-stock="${p.current_stock}" ${isSelected}>
+            prodOptions += `<option value="${p.id}" 
+                data-tp="${p.trade_price}" 
+                data-ws="${p.wholesale_price}" 
+                data-rtl="${p.retail_price}" 
+                data-min="${p.min_sale_price}" 
+                data-unit="${p.base_unit_id}" 
+                data-stock="${p.current_stock}" ${isSelected}>
                 ${p.name} (Stock: ${p.current_stock})
             </option>`;
         });
@@ -355,7 +452,12 @@ document.addEventListener('DOMContentLoaded', function () {
                 <select class="form-select form-select-sm prod-select" name="prod_id[]" required>
                     ${prodOptions}
                 </select>
-                <input type="hidden" name="unit_id[]" class="prod-unit-id" value="1">
+                <div class="rate-tier-badge text-muted small mt-1" style="font-size: 0.67rem; line-height: 1;"></div>
+            </td>
+            <td>
+                <select class="form-select form-select-sm prod-unit-select" name="unit_id[]" required>
+                    <!-- Dynamically populated based on product -->
+                </select>
             </td>
             <td>
                 <input type="number" class="form-control form-control-sm item-qty text-center" name="quantity[]" value="1" min="1" step="1" required>
@@ -375,17 +477,52 @@ document.addEventListener('DOMContentLoaded', function () {
         itemsContainer.appendChild(row);
 
         const sel = row.querySelector('.prod-select');
+        const unitSel = row.querySelector('.prod-unit-select');
         const qty = row.querySelector('.item-qty');
         const price = row.querySelector('.item-price');
         const disc = row.querySelector('.item-disc');
         const delBtn = row.querySelector('.btn-del-row');
 
-        sel.addEventListener('change', function () {
-            const opt = this.options[this.selectedIndex];
-            if (this.value) {
-                price.value = parseFloat(opt.getAttribute('data-price') || 0).toFixed(2);
-                row.querySelector('.prod-unit-id').value = opt.getAttribute('data-unit') || 1;
+        // Populate unit dropdown for selected product
+        function populateUnits(productId) {
+            unitSel.innerHTML = '';
+            const prod = cachedProducts.find(p => p.id == productId);
+            if (!prod) {
+                allUnits.forEach(u => {
+                    unitSel.innerHTML += `<option value="${u.id}">${u.name}</option>`;
+                });
+                return;
             }
+
+            // Always add product's base unit first
+            const baseUnit = allUnits.find(u => u.id == prod.base_unit_id);
+            if (baseUnit) {
+                unitSel.innerHTML += `<option value="${baseUnit.id}" selected>${baseUnit.name} (${baseUnit.code})</option>`;
+            }
+
+            // Add other packaging units with conversion ratios
+            allUnits.forEach(u => {
+                if (u.id != prod.base_unit_id) {
+                    const mult = getUnitMultiplier(u.id, prod.base_unit_id);
+                    let label = `${u.name}`;
+                    if (mult > 1) {
+                        label += ` (Ã—${mult} ${baseUnit ? baseUnit.code : ''})`;
+                    }
+                    unitSel.innerHTML += `<option value="${u.id}">${label}</option>`;
+                }
+            });
+        }
+
+        sel.addEventListener('change', function () {
+            if (this.value) {
+                populateUnits(this.value);
+                updateRowPriceFromTier(row);
+            }
+            recalcRow(row);
+        });
+
+        unitSel.addEventListener('change', function () {
+            updateRowPriceFromTier(row);
             recalcRow(row);
         });
 
@@ -399,7 +536,10 @@ document.addEventListener('DOMContentLoaded', function () {
         });
 
         if (defaultProdId) {
-            sel.dispatchEvent(new Event('change'));
+            sel.value = defaultProdId;
+            populateUnits(defaultProdId);
+            updateRowPriceFromTier(row);
+            recalcRow(row);
         }
     }
 
@@ -439,11 +579,12 @@ document.addEventListener('DOMContentLoaded', function () {
             // Build offline payload
             const custId = customerSelect.value;
             const orderDate = document.getElementById('order_date').value;
+            const priceTier = priceTierSelect.value;
             const items = [];
 
             document.querySelectorAll('.item-row').forEach(r => {
                 const pId = r.querySelector('.prod-select').value;
-                const uId = r.querySelector('.prod-unit-id').value;
+                const uId = r.querySelector('.prod-unit-select').value;
                 const q = parseFloat(r.querySelector('.item-qty').value || 0);
                 const p = parseFloat(r.querySelector('.item-price').value || 0);
                 const d = parseFloat(r.querySelector('.item-disc').value || 0);
@@ -461,6 +602,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 customer_id: custId,
                 order_booker_id: <?= (int)($currentEmp['id'] ?? 1) ?>,
                 order_date: orderDate,
+                price_tier: priceTier,
                 items: items
             };
 

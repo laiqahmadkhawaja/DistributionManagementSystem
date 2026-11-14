@@ -22,6 +22,7 @@ $company = getCompanyInfo($pdo);
 $currUser = getCurrentUser();
 
 $date = sanitize($_GET['date'] ?? date('Y-m-d'));
+$mode = sanitize($_GET['mode'] ?? 'dispatch'); // 'dispatch' or 'booker'
 $bookerId = (int)($_GET['booker_id'] ?? 0);
 $deliveryManId = (int)($_GET['delivery_man_id'] ?? 0);
 $areaId = (int)($_GET['area_id'] ?? 0);
@@ -31,6 +32,24 @@ $status = sanitize($_GET['status'] ?? 'all');
 $bookers = $pdo->query("SELECT id, full_name, employee_code FROM employees WHERE role_type IN ('order_booker', 'salesman') AND status = 'active' ORDER BY full_name ASC")->fetchAll();
 $deliveryStaff = $pdo->query("SELECT id, full_name, employee_code FROM employees WHERE role_type = 'delivery_man' AND status = 'active' ORDER BY full_name ASC")->fetchAll();
 $areas = $pdo->query("SELECT id, name FROM areas WHERE status = 'active' ORDER BY name ASC")->fetchAll();
+
+// Booker Daily Leaderboard Summary Query
+$bookerSummaryStmt = $pdo->prepare("
+    SELECT 
+        e.id, e.full_name, e.employee_code, e.phone,
+        COUNT(DISTINCT so.id) as orders_booked,
+        COUNT(DISTINCT so.customer_id) as shops_booked,
+        COALESCE(SUM(so.grand_total), 0) as total_booked_value,
+        COALESCE(SUM(soi.quantity), 0) as total_units_booked
+    FROM employees e
+    LEFT JOIN sales_orders so ON e.id = so.order_booker_id AND so.order_date = ? AND so.status NOT IN ('draft', 'rejected', 'cancelled')
+    LEFT JOIN sales_order_items soi ON so.id = soi.sales_order_id
+    WHERE e.role_type IN ('order_booker', 'salesman') AND e.status = 'active'
+    GROUP BY e.id, e.full_name, e.employee_code, e.phone
+    ORDER BY total_booked_value DESC
+");
+$bookerSummaryStmt->execute([$date]);
+$bookerDailyStats = $bookerSummaryStmt->fetchAll();
 
 // Build Base Where Clause for Orders
 $whereConditions = ["so.order_date = :order_date"];
@@ -218,9 +237,9 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
             <a href="<?= BASE_URL ?>/modules/reports/daily_closing.php" class="btn btn-sm btn-outline-dark">
                 <i class="bi bi-clock-history me-1"></i> Daily Day Closing
             </a>
-            <button type="button" class="btn btn-sm btn-primary" onclick="window.print();">
-                <i class="bi bi-printer me-1"></i> Print Load Sheet (Excel View)
-            </button>
+            <a href="<?= BASE_URL ?>/modules/reports/loadsheet_print.php?date=<?= $date ?>&mode=<?= $mode ?>&booker_id=<?= $bookerId ?>&delivery_man_id=<?= $deliveryManId ?>&area_id=<?= $areaId ?>&autoprint=1" target="_blank" class="btn btn-sm btn-primary">
+                <i class="bi bi-printer me-1"></i> Print 1-Page Minimal (Excel View)
+            </a>
             <button type="button" class="btn btn-sm btn-success" onclick="exportLoadsheetToCSV();">
                 <i class="bi bi-file-earmark-excel me-1"></i> Export Excel (.CSV)
             </button>
@@ -230,10 +249,72 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
         </div>
     </div>
 
+    <!-- Mode Selector Navigation Pills (Vehicle Dispatch vs Booker Daily Summary) -->
+    <ul class="nav nav-pills mb-3 d-print-none gap-2">
+        <li class="nav-item">
+            <a class="nav-link <?= $mode === 'dispatch' ? 'active' : 'bg-light text-dark border' ?> fw-semibold py-1 px-3" href="<?= BASE_URL ?>/modules/reports/loadsheet.php?mode=dispatch&date=<?= $date ?>&booker_id=<?= $bookerId ?>&delivery_man_id=<?= $deliveryManId ?>&area_id=<?= $areaId ?>">
+                <i class="bi bi-truck-flatbed me-1"></i> 1. Vehicle Dispatch Load Sheet (گاڑی کی لوڈ شیٹ)
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link <?= $mode === 'booker' ? 'active' : 'bg-light text-dark border' ?> fw-semibold py-1 px-3" href="<?= BASE_URL ?>/modules/reports/loadsheet.php?mode=booker&date=<?= $date ?>&booker_id=<?= $bookerId ?>&delivery_man_id=<?= $deliveryManId ?>&area_id=<?= $areaId ?>">
+                <i class="bi bi-person-badge me-1"></i> 2. Order Booker Daily Booking Sheet (آرڈر بکر وائز ڈیلی سمری)
+            </a>
+        </li>
+    </ul>
+
+    <!-- Booker Daily Performance Leaderboard (Shown in Booker Mode) -->
+    <?php if ($mode === 'booker' && !empty($bookerDailyStats)): ?>
+        <div class="card border-0 shadow-sm rounded-3 mb-3 d-print-none">
+            <div class="card-header bg-white py-2 border-0 d-flex justify-content-between align-items-center">
+                <h6 class="fw-bold mb-0 text-dark">
+                    <i class="bi bi-people-fill text-primary me-1"></i> Today's Field Order Bookers Activity (آج کی فیلڈ بکنگ سمری)
+                </h6>
+                <span class="small text-muted"><?= count($bookerDailyStats) ?> sales reps active</span>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover table-sm align-middle mb-0" style="font-size: 0.85rem;">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Order Booker</th>
+                            <th>Code</th>
+                            <th class="text-center">Shops Booked</th>
+                            <th class="text-center">Orders Count</th>
+                            <th class="text-end">Units Booked</th>
+                            <th class="text-end">Gross Booked Value</th>
+                            <th class="text-end pe-3">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($bookerDailyStats as $bStat): ?>
+                            <tr class="<?= $bookerId === (int)$bStat['id'] ? 'table-primary fw-bold' : '' ?>">
+                                <td>
+                                    <strong><?= htmlspecialchars($bStat['full_name']) ?></strong>
+                                    <span class="text-muted small ms-1">(<?= htmlspecialchars($bStat['phone']) ?>)</span>
+                                </td>
+                                <td><span class="badge bg-secondary-subtle text-dark border"><?= htmlspecialchars($bStat['employee_code']) ?></span></td>
+                                <td class="text-center fw-bold"><?= $bStat['shops_booked'] ?> shops</td>
+                                <td class="text-center"><?= $bStat['orders_booked'] ?> orders</td>
+                                <td class="text-end"><?= number_format((float)$bStat['total_units_booked'], 2) ?></td>
+                                <td class="text-end fw-bold text-success">Rs. <?= number_format((float)$bStat['total_booked_value'], 2) ?></td>
+                                <td class="text-end pe-3">
+                                    <a href="<?= BASE_URL ?>/modules/reports/loadsheet.php?mode=booker&date=<?= $date ?>&booker_id=<?= $bStat['id'] ?>" class="btn btn-sm <?= $bookerId === (int)$bStat['id'] ? 'btn-primary' : 'btn-outline-primary' ?> py-0 px-2" title="Filter this Booker's Load Sheet">
+                                        <i class="bi bi-funnel"></i> View Sheet
+                                    </a>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    <?php endif; ?>
+
     <!-- Filter Card (Hidden on Print) -->
     <div class="card border-0 shadow-sm rounded-3 mb-3 d-print-none">
         <div class="card-body p-3">
             <form method="GET" action="<?= BASE_URL ?>/modules/reports/loadsheet.php" class="row g-2 align-items-end">
+                <input type="hidden" name="mode" value="<?= htmlspecialchars($mode) ?>">
                 <div class="col-6 col-md-2">
                     <label class="form-label small fw-bold mb-1">Dispatch Date</label>
                     <input type="date" class="form-control form-control-sm" name="date" value="<?= htmlspecialchars($date) ?>" required>
@@ -295,7 +376,7 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
                     </div>
                 </div>
                 <div class="col-5 text-end">
-                    <div class="badge bg-dark fs-6 px-2 py-1 text-uppercase">VEHICLE LOAD SHEET / لوڈ شیٹ</div>
+                    <div class="badge bg-dark fs-6 px-2 py-1 text-uppercase"><?= $mode === "booker" ? "BOOKER BOOKING SUMMARY / لوڈ شیٹ برائے آرڈر بکر" : "VEHICLE LOAD SHEET / لوڈ شیٹ برائے ترسیل" ?></div>
                     <div class="small fw-bold text-dark mt-1">Date: <?= date('d-M-Y (l)', strtotime($date)) ?></div>
                 </div>
             </div>

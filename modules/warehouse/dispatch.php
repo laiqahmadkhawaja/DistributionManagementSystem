@@ -36,7 +36,7 @@ if (!$order) {
 
 // Fetch line items with current warehouse stock
 $itemsStmt = $pdo->prepare("
-    SELECT soi.*, p.name as product_name, p.code as product_code, p.purchase_price as prod_cost,
+    SELECT soi.*, p.name as product_name, p.code as product_code, p.purchase_price as prod_cost, p.base_unit_id,
            u.name as unit_name,
            (SELECT COALESCE(SUM(quantity_in) - SUM(quantity_out), 0) FROM `stock_ledger` WHERE product_id = soi.product_id AND warehouse_id = 1) as current_stock
     FROM `sales_order_items` soi
@@ -115,7 +115,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $diStmt->execute([$assignmentId, $itemId, $pId, $uId, $dispQty, $uPrice, $lineTotal]);
                 $soiUpdate->execute([$dispQty, $itemId]);
 
-                // 2. Critical Inventory Rule: Actual Stock Outflow from Warehouse
+                // 2. Critical Inventory Rule: Convert dispatched packaging units to base physical units
+                $baseUnitId = (int)($item['base_unit_id'] ?: $uId);
+                $physicalQtyOut = convertUnitQuantity($pdo, $pId, $uId, $baseUnitId, $dispQty);
+
                 recordStockMovement(
                     $pdo,
                     $warehouseId,
@@ -123,12 +126,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'sale_dispatch',
                     'delivery_assignment',
                     $assignmentId,
-                    $uId,
+                    $baseUnitId,
                     0.00, // qty in
-                    $dispQty, // qty out
+                    $physicalQtyOut, // physical base units deducted
                     $uCost,
                     null,
-                    "Dispatched via Challan {$dispatchNumber} for {$order['order_number']}"
+                    "Dispatched {$dispQty} {$item['unit_name']} via Challan {$dispatchNumber}"
                 );
             }
         }

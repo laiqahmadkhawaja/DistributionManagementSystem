@@ -507,6 +507,7 @@ CREATE TABLE `sales_orders` (
     `grand_total` DECIMAL(14,2) NOT NULL DEFAULT 0.00,
     `status` ENUM('draft', 'submitted', 'pending_approval', 'approved', 'rejected', 'processing', 'ready_for_dispatch', 'dispatched', 'partially_delivered', 'delivered', 'cancelled') DEFAULT 'submitted',
     `payment_type` ENUM('cash', 'credit') DEFAULT 'credit',
+    `price_tier` ENUM('trade_price', 'wholesale_price', 'retail_price') DEFAULT 'trade_price',
     `notes` TEXT NULL,
     `approved_by` INT UNSIGNED NULL,
     `approved_at` DATETIME NULL,
