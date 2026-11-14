@@ -1,0 +1,14 @@
+# Archives & Temporary Backups
+*.zip
+*.tar.gz
+*.rar
+
+# Test / Debug cookies & logs
+test_cookie*.txt
+*.log
+
+# OS & Editor Metadata
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

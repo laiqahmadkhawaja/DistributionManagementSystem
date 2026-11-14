@@ -1,0 +1,17 @@
+{
+  "name": "Falcon Distribution Management System",
+  "short_name": "Falcon DMS",
+  "description": "Enterprise Mobile-First Distribution Management System with Offline Sync",
+  "start_url": "./index.php",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#ffffff",
+  "theme_color": "#0d6efd",
+  "icons": [
+    {
+      "src": "./assets/vendor/bootstrap-icons/fonts/bootstrap-icons.woff2",
+      "sizes": "192x192",
+      "type": "font/woff2"
+    }
+  ]
+}

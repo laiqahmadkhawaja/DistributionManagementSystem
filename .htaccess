@@ -1,0 +1,24 @@
+# Enterprise Distribution Management System (DMS)
+# Apache Web Server Configuration
+
+Options -Indexes
+ServerSignature Off
+
+# Enable UTF-8 encoding
+AddDefaultCharset UTF-8
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+</IfModule>
+
+# Protect sensitive database & config files
+<FilesMatch "\.(sql|log|ini|env)$">
+    Require all denied
+</FilesMatch>
+
+# Security Headers
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "SAMEORIGIN"
+    Header set X-XSS-Protection "1; mode=block"
+</IfModule>

@@ -1,0 +1,886 @@
+/**
+ * Enterprise Distribution Management System (DMS)
+ * Mobile-First Custom Styles, Independent Sidebar Scroll & Excel Reports
+ */
+
+:root {
+    --dms-primary: #0d6efd;
+    --dms-secondary: #495057;
+    --dms-success: #198754;
+    --dms-danger: #dc3545;
+    --dms-warning: #ffc107;
+    --dms-info: #0dcaf0;
+    --dms-dark: #1e293b;
+    --dms-light: #f8fafc;
+    --dms-border: #e2e8f0;
+    --header-height: 58px;
+    --mobile-nav-height: 64px;
+}
+
+body {
+    background-color: #f1f5f9;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    color: #334155;
+    min-height: 100vh;
+    padding-bottom: calc(var(--mobile-nav-height) + 15px);
+    overflow-x: hidden;
+}
+
+@media (min-width: 768px) {
+    body {
+        padding-bottom: 0;
+    }
+}
+
+/* Fixed Top Navigation Bar */
+.navbar-dms {
+    background: #ffffff;
+    border-bottom: 1px solid var(--dms-border);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    height: var(--header-height);
+    z-index: 1030;
+}
+
+.brand-text {
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    color: #0f172a;
+}
+
+/* ==========================================================================
+   INDEPENDENT SCROLLING: SIDEBAR AND MAIN CONTENT
+   ========================================================================== */
+@media (min-width: 768px) {
+    html, body {
+        height: 100%;
+        overflow: hidden;
+    }
+
+    .dms-layout-container {
+        height: calc(100vh - var(--header-height));
+        overflow: hidden;
+        padding-left: 0;
+        padding-right: 0;
+    }
+
+    .sidebar {
+        height: 100%;
+        overflow-y: auto;
+        overflow-x: hidden;
+        background-color: #ffffff;
+        border-right: 1px solid var(--dms-border);
+        scrollbar-width: thin;
+        scrollbar-color: #cbd5e1 #ffffff;
+        z-index: 1020;
+    }
+
+    .sidebar::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .sidebar::-webkit-scrollbar-track {
+        background: #ffffff;
+    }
+
+    .sidebar::-webkit-scrollbar-thumb {
+        background-color: #cbd5e1;
+        border-radius: 4px;
+    }
+
+    .dms-main-content {
+        height: 100%;
+        overflow-y: auto;
+        overflow-x: hidden;
+        padding-bottom: 60px;
+        scrollbar-width: thin;
+        scrollbar-color: #cbd5e1 #f1f5f9;
+    }
+
+    .dms-main-content::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .dms-main-content::-webkit-scrollbar-track {
+        background: #f1f5f9;
+    }
+
+    .dms-main-content::-webkit-scrollbar-thumb {
+        background-color: #cbd5e1;
+        border-radius: 4px;
+    }
+}
+
+.sidebar .nav-link {
+    font-weight: 500;
+    color: #475569;
+    padding: 0.62rem 0.95rem;
+    border-radius: 8px;
+    margin-bottom: 2px;
+    display: flex;
+    align-items: center;
+    transition: all 0.15s ease;
+}
+
+.sidebar .nav-link i {
+    font-size: 1.15rem;
+    margin-right: 0.75rem;
+}
+
+.sidebar .nav-link:hover,
+.sidebar .nav-link.active {
+    color: var(--dms-primary);
+    background-color: #eff6ff;
+    font-weight: 600;
+}
+
+.sidebar-heading {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    color: #94a3b8;
+    padding: 0.75rem 0.95rem 0.25rem;
+}
+
+/* Mobile Bottom Navigation Bar */
+.mobile-bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: var(--mobile-nav-height);
+    background: #ffffff;
+    border-top: 1px solid var(--dms-border);
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    z-index: 1040;
+    box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+}
+
+.mobile-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #64748b;
+    text-decoration: none;
+    font-size: 0.75rem;
+    font-weight: 500;
+    flex: 1;
+    padding: 6px 0;
+}
+
+.mobile-nav-item i {
+    font-size: 1.3rem;
+    margin-bottom: 2px;
+}
+
+.mobile-nav-item.active,
+.mobile-nav-item:active {
+    color: var(--dms-primary);
+    font-weight: 600;
+}
+
+/* Status Cards & Widgets */
+.stat-card {
+    background: #ffffff;
+    border-radius: 12px;
+    border: 1px solid var(--dms-border);
+    padding: 1.15rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+
+.stat-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+}
+
+/* Strict No-Modal Replacement: Inline Confirmation Panel */
+.inline-confirm-panel {
+    border: 2px dashed #f59e0b;
+    background-color: #fffbeb;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-top: 0.5rem;
+    animation: fadeIn 0.2s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-5px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Touch-Friendly Form Elements */
+.form-control, .form-select {
+    border-radius: 8px;
+    border: 1px solid #cbd5e1;
+    padding: 0.6rem 0.85rem;
+    font-size: 0.95rem;
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.btn-touch {
+    padding: 0.65rem 1.25rem;
+    font-weight: 600;
+    border-radius: 8px;
+}
+
+/* WhatsApp Action Button */
+.btn-whatsapp {
+    background-color: #25D366;
+    color: #ffffff !important;
+    border: none;
+    font-weight: 600;
+    transition: background-color 0.15s ease;
+}
+
+.btn-whatsapp:hover, .btn-whatsapp:active {
+    background-color: #1ebd5b;
+    color: #ffffff !important;
+}
+
+/* Status Badges */
+.badge-status {
+    padding: 0.45em 0.75em;
+    font-weight: 600;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+/* Offline Sync Status Banner */
+.sync-indicator-banner {
+    font-size: 0.85rem;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.sync-online {
+    background-color: #dcfce7;
+    color: #166534;
+}
+
+.sync-offline {
+    background-color: #fee2e2;
+    color: #991b1b;
+}
+
+/* ==========================================================================
+   EXCEL-LIKE REPORT STYLING (.table-excel)
+   ========================================================================== */
+.table-excel {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+    background-color: #ffffff;
+    border: 1px solid #cbd5e1;
+}
+
+.table-excel th,
+.table-excel td {
+    border: 1px solid #cbd5e1;
+    padding: 6px 10px;
+    vertical-align: middle;
+}
+
+.table-excel thead th {
+    background-color: #107c41; /* Excel green */
+    color: #ffffff;
+    font-weight: 600;
+    text-align: left;
+    border: 1px solid #0b5c30;
+    white-space: nowrap;
+}
+
+.table-excel tbody tr:nth-child(even) {
+    background-color: #f8fafc;
+}
+
+.table-excel tbody tr:hover {
+    background-color: #f1f5f9;
+}
+
+.table-excel .num-cell {
+    font-family: Consolas, "Liberation Mono", Menlo, Courier, monospace;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    font-weight: 500;
+}
+
+.table-excel tfoot td {
+    background-color: #e2e8f0;
+    font-weight: 700;
+    border-top: 2px solid #334155;
+    border-bottom: 3px double #334155;
+}
+
+/* ==========================================================================
+   OFFICIAL COMMERCIAL SALES BILL & INVOICE (.bill-sheet)
+   ========================================================================== */
+.bill-sheet {
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 1.5rem 1.75rem;
+    box-shadow: 0 4px 16px rgba(15, 23, 42, 0.08);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    color: #0f172a;
+    width: 100%;
+}
+
+.bill-header-title {
+    font-size: 1.35rem;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    color: #0f172a;
+    line-height: 1.2;
+}
+
+.bill-badge-status {
+    background-color: #0f172a;
+    color: #ffffff;
+    font-size: 0.72rem;
+    padding: 4px 10px;
+    font-weight: 700;
+    border-radius: 4px;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    display: inline-block;
+}
+
+.bill-meta-box {
+    background-color: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 0.75rem 1rem;
+}
+
+.bill-section-title {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: #1e293b;
+    border-bottom: 1px solid #cbd5e1;
+    padding-bottom: 3px;
+    margin-bottom: 6px;
+}
+
+.bill-totals-table {
+    width: 100%;
+    margin-bottom: 0;
+}
+
+.bill-totals-table td {
+    padding: 4px 8px;
+    font-size: 0.85rem;
+    border: 0;
+}
+
+.bill-totals-table tr.grand-total-row td {
+    border-top: 1.5px solid #0f172a;
+    border-bottom: 2px solid #0f172a;
+    background-color: #f1f5f9;
+    font-weight: 800;
+}
+
+.bill-due-box {
+    border: 2px solid #0f172a;
+    background-color: #fef2f2;
+    padding: 6px 10px;
+    border-radius: 4px;
+}
+
+.bill-sig-box {
+    border-top: 1px solid #475569;
+    margin-top: 24px;
+    padding-top: 4px;
+    text-align: center;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #334155;
+}
+
+/* Bulletproof Screen & Print Grid Helpers */
+.table-layout-grid {
+    width: 100% !important;
+    table-layout: fixed !important;
+    border-collapse: collapse !important;
+    border: none !important;
+    background: transparent !important;
+    margin-bottom: 6px !important;
+}
+.table-layout-grid td,
+.table-layout-grid th {
+    border: none !important;
+    background: transparent !important;
+}
+
+.print-grid-2 {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    gap: 12px;
+    width: 100%;
+}
+.print-grid-2 > * {
+    flex: 1 1 0%;
+    width: 50%;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+.print-grid-60-40 {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    gap: 12px;
+    width: 100%;
+}
+.print-grid-60-40 > .print-col-left {
+    flex: 58 1 0%;
+    width: 58%;
+    min-width: 0;
+    box-sizing: border-box;
+}
+.print-grid-60-40 > .print-col-right {
+    flex: 42 1 0%;
+    width: 42%;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+.print-grid-4 {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    gap: 8px;
+    width: 100%;
+}
+.print-grid-4 > * {
+    flex: 1 1 0%;
+    width: 25%;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+/* ==========================================================================
+   OFFICIAL WAREHOUSE OUTWARD GATE PASS (.gatepass-sheet)
+   ========================================================================== */
+.gatepass-sheet {
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 1.5rem 1.75rem;
+    box-shadow: 0 4px 16px rgba(15, 23, 42, 0.08);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    color: #0f172a;
+    width: 100%;
+}
+
+.gatepass-header-title {
+    font-size: 1.35rem;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    color: #0f172a;
+    line-height: 1.2;
+}
+
+.gatepass-badge {
+    background-color: #0f172a;
+    color: #ffffff;
+    font-weight: 700;
+    font-size: 0.75rem;
+    padding: 5px 12px;
+    border-radius: 4px;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+}
+
+.gatepass-meta-box {
+    background-color: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 0.75rem 1rem;
+}
+
+.gatepass-sig-box {
+    border: 1px solid #94a3b8;
+    border-radius: 4px;
+    height: 75px;
+    background-color: #ffffff;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 6px 8px;
+    text-align: center;
+}
+
+/* Mobile Responsive Cards for Tables */
+@media (max-width: 767.98px) {
+    .table-responsive-card {
+        display: block;
+        border: 0;
+    }
+    
+    .table-responsive-card thead {
+        display: none;
+    }
+    
+    .table-responsive-card tr {
+        display: block;
+        margin-bottom: 1rem;
+        background: #ffffff;
+        border: 1px solid var(--dms-border);
+        border-radius: 10px;
+        padding: 0.75rem 1rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+    }
+    
+    .table-responsive-card td {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px dashed var(--dms-border);
+        padding: 0.5rem 0;
+        text-align: right;
+    }
+    
+    .table-responsive-card td:last-child {
+        border-bottom: 0;
+        padding-top: 0.75rem;
+        justify-content: flex-end;
+    }
+    
+    .table-responsive-card td::before {
+        content: attr(data-label);
+        font-weight: 600;
+        color: #64748b;
+        text-align: left;
+        margin-right: 1rem;
+    }
+
+    .print-grid-2,
+    .print-grid-60-40,
+    .print-grid-4 {
+        flex-direction: column !important;
+    }
+    .print-grid-2 > *,
+    .print-grid-60-40 > *,
+    .print-grid-4 > * {
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+}
+
+/* ==========================================================================
+   PRINT MEDIA STYLES (A4 Excel Single-Page Guarantee & Minimal High-Density View)
+   ========================================================================== */
+@page {
+    size: A4 portrait;
+    margin: 5mm 6mm 5mm 6mm;
+}
+
+@media print {
+    html, body {
+        background: #ffffff !important;
+        color: #000000 !important;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+        font-size: 9.5px !important;
+        line-height: 1.15 !important;
+        height: auto !important;
+        min-height: auto !important;
+        overflow: visible !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+
+    .dms-layout-container,
+    .dms-layout-container > .row {
+        display: block !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    .dms-layout-container > .row > main,
+    main,
+    .dms-main-content {
+        display: block !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        flex: none !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        float: none !important;
+    }
+
+    #ledgerContainer,
+    #supplierLedgerContainer,
+    #printableBill,
+    .bill-sheet,
+    .gatepass-sheet {
+        display: block !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        height: auto !important;
+        overflow: visible !important;
+        border: none !important;
+        box-shadow: none !important;
+        background: transparent !important;
+    }
+
+    .card:not(.d-print-none) {
+        border: 1px solid #cbd5e1 !important;
+        background: transparent !important;
+    }
+    .card:not(.d-print-none) .card-body {
+        padding: 2px !important;
+    }
+
+    /* Strictly Hide All Non-Print Elements - Overrides any card, row, or container rules */
+    .d-print-none,
+    *.d-print-none,
+    .card.d-print-none,
+    div.d-print-none,
+    form.d-print-none,
+    form,
+    #panel-supplier-payment,
+    .navbar-dms,
+    #sidebarMenu,
+    .sidebar,
+    .mobile-bottom-nav,
+    #dms-toast-container,
+    .btn,
+    .btn-whatsapp,
+    .flash-container,
+    header,
+    nav {
+        display: none !important;
+    }
+
+    /* Print Flex Multi-Column Systems */
+    .row {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        margin-right: -3px !important;
+        margin-left: -3px !important;
+    }
+    .row > * {
+        padding-right: 3px !important;
+        padding-left: 3px !important;
+    }
+    .col-12 { flex: 0 0 auto !important; width: 100% !important; }
+    .col-8  { flex: 0 0 auto !important; width: 66.666667% !important; }
+    .col-7  { flex: 0 0 auto !important; width: 58.333333% !important; }
+    .col-6  { flex: 0 0 auto !important; width: 50% !important; }
+    .col-5  { flex: 0 0 auto !important; width: 41.666667% !important; }
+    .col-4  { flex: 0 0 auto !important; width: 33.333333% !important; }
+    .col-3  { flex: 0 0 auto !important; width: 25% !important; }
+
+    .table-layout-grid {
+        width: 100% !important;
+        table-layout: fixed !important;
+        border-collapse: collapse !important;
+        border: none !important;
+        background: transparent !important;
+        margin-bottom: 4px !important;
+    }
+    .table-layout-grid td,
+    .table-layout-grid th {
+        border: none !important;
+        background: transparent !important;
+        padding: 0 !important;
+    }
+
+    .print-grid-2 {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        gap: 6px !important;
+        width: 100% !important;
+    }
+    .print-grid-2 > * {
+        flex: 1 1 0% !important;
+        width: 50% !important;
+        min-width: 0 !important;
+        box-sizing: border-box !important;
+    }
+
+    .print-grid-60-40 {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        gap: 6px !important;
+        width: 100% !important;
+    }
+    .print-grid-60-40 > .print-col-left {
+        flex: 58 1 0% !important;
+        width: 58% !important;
+        min-width: 0 !important;
+        box-sizing: border-box !important;
+    }
+    .print-grid-60-40 > .print-col-right {
+        flex: 42 1 0% !important;
+        width: 42% !important;
+        min-width: 0 !important;
+        box-sizing: border-box !important;
+    }
+
+    .print-grid-4 {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        gap: 5px !important;
+        width: 100% !important;
+    }
+    .print-grid-4 > * {
+        flex: 1 1 0% !important;
+        width: 25% !important;
+        min-width: 0 !important;
+        box-sizing: border-box !important;
+    }
+
+    .bill-sheet,
+    .gatepass-sheet {
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        max-width: 100% !important;
+        width: 100% !important;
+        page-break-inside: avoid !important;
+    }
+
+    .table-responsive {
+        overflow: visible !important;
+        display: block !important;
+        width: 100% !important;
+        margin: 0 0 4px 0 !important;
+        padding: 0 !important;
+    }
+
+    /* Universal Excel Gridlines for Print */
+    .table-excel,
+    table.table,
+    .table-bordered {
+        width: 100% !important;
+        border-collapse: collapse !important;
+        font-size: 9px !important;
+        line-height: 1.15 !important;
+        margin-bottom: 4px !important;
+    }
+
+    .table-excel th,
+    .table-excel td,
+    table.table th,
+    table.table td,
+    .table-bordered th,
+    .table-bordered td {
+        border: 1px solid #000000 !important;
+        padding: 2px 4px !important;
+        vertical-align: middle !important;
+        color: #000000 !important;
+        word-wrap: break-word !important;
+    }
+
+    table.table-borderless th,
+    table.table-borderless td,
+    .table-layout-grid th,
+    .table-layout-grid td {
+        border: none !important;
+        padding: 1px 2px !important;
+    }
+
+    .table-excel thead th,
+    table.table thead th {
+        background-color: #f1f5f9 !important;
+        color: #000000 !important;
+        font-weight: 700 !important;
+        font-size: 8.5px !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.3px !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    .table-excel tfoot td,
+    table.table tfoot td {
+        background-color: #f8fafc !important;
+        font-weight: 700 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    .num-cell {
+        font-family: Consolas, "Liberation Mono", Menlo, Courier, monospace !important;
+        font-variant-numeric: tabular-nums !important;
+        text-align: right !important;
+        white-space: nowrap !important;
+    }
+
+    .bill-meta-box,
+    .gatepass-meta-box,
+    .excel-meta-box {
+        background-color: #f8fafc !important;
+        border: 1px solid #000000 !important;
+        padding: 4px 6px !important;
+        margin-bottom: 4px !important;
+        font-size: 9px !important;
+        line-height: 1.2 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        page-break-inside: avoid !important;
+    }
+
+    .bill-totals-table td {
+        padding: 1.5px 3px !important;
+        font-size: 8.5px !important;
+    }
+
+    .bill-due-box {
+        border: 1.5px solid #000000 !important;
+        background-color: #fee2e2 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    .gatepass-sig-box {
+        border: 1px solid #000000 !important;
+        height: 55px !important;
+        page-break-inside: avoid !important;
+    }
+
+    .bill-sig-box {
+        margin-top: 10px !important;
+        page-break-inside: avoid !important;
+    }
+
+    tr {
+        page-break-inside: avoid !important;
+    }
+}
