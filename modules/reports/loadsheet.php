@@ -28,10 +28,63 @@ $deliveryManId = (int)($_GET['delivery_man_id'] ?? 0);
 $areaId = (int)($_GET['area_id'] ?? 0);
 $status = sanitize($_GET['status'] ?? 'all');
 
+// Parse Multi-Area Selection (e.g. area_ids=1,2)
+$selectedAreaIds = [];
+if (!empty($_GET['area_ids'])) {
+    if (is_array($_GET['area_ids'])) {
+        $selectedAreaIds = array_filter(array_map('intval', $_GET['area_ids']));
+    } else {
+        $selectedAreaIds = array_filter(array_map('intval', explode(',', $_GET['area_ids'])));
+    }
+} elseif ($areaId > 0) {
+    $selectedAreaIds = [$areaId];
+}
+
+// Route Cadence & Scheduled Period Key for Dispatch Date
+$cadence = getSetting($pdo, 'route_assignment_cadence', 'weekly');
+if ($cadence === 'daily') {
+    $periodKey = $date;
+} elseif ($cadence === 'monthly') {
+    $periodKey = date('Y-m', strtotime($date));
+} elseif ($cadence === 'fixed') {
+    $periodKey = 'ALL';
+} else {
+    $periodKey = date('o-\WW', strtotime($date));
+}
+
 // Fetch dropdown filter options
 $bookers = $pdo->query("SELECT id, full_name, employee_code FROM employees WHERE role_type IN ('order_booker', 'salesman') AND status = 'active' ORDER BY full_name ASC")->fetchAll();
-$deliveryStaff = $pdo->query("SELECT id, full_name, employee_code FROM employees WHERE role_type = 'delivery_man' AND status = 'active' ORDER BY full_name ASC")->fetchAll();
-$areas = $pdo->query("SELECT id, name FROM areas WHERE status = 'active' ORDER BY name ASC")->fetchAll();
+$deliveryStaff = $pdo->query("SELECT id, full_name, employee_code FROM employees WHERE role_type IN ('delivery_man', 'salesman') AND status = 'active' ORDER BY full_name ASC")->fetchAll();
+$allAreas = $pdo->query("SELECT id, name, code, city FROM areas WHERE status = 'active' ORDER BY name ASC")->fetchAll();
+
+// Pre-compute Staff-to-Assigned-Areas Mapping for Dynamic Filtering
+$bookerAreasMap = [];
+foreach ($bookers as $b) {
+    $bId = (int)$b['id'];
+    $stmt = $pdo->prepare("
+        SELECT DISTINCT a.id, a.name, a.code
+        FROM areas a
+        LEFT JOIN employee_area_assignments eaa ON a.id = eaa.area_id AND eaa.employee_id = ? AND (eaa.schedule_key = ? OR eaa.schedule_key = 'ALL')
+        WHERE a.status = 'active' AND (eaa.id IS NOT NULL OR a.assigned_order_booker_id = ?)
+        ORDER BY a.name ASC
+    ");
+    $stmt->execute([$bId, $periodKey, $bId]);
+    $bookerAreasMap[$bId] = $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+$riderAreasMap = [];
+foreach ($deliveryStaff as $ds) {
+    $dsId = (int)$ds['id'];
+    $stmt = $pdo->prepare("
+        SELECT DISTINCT a.id, a.name, a.code
+        FROM areas a
+        LEFT JOIN employee_area_assignments eaa ON a.id = eaa.area_id AND eaa.employee_id = ? AND (eaa.schedule_key = ? OR eaa.schedule_key = 'ALL')
+        WHERE a.status = 'active' AND (eaa.id IS NOT NULL OR a.assigned_rider_id = ?)
+        ORDER BY a.name ASC
+    ");
+    $stmt->execute([$dsId, $periodKey, $dsId]);
+    $riderAreasMap[$dsId] = $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
 
 // Booker Daily Leaderboard Summary Query
 $bookerSummaryStmt = $pdo->prepare("
@@ -67,9 +120,14 @@ if ($bookerId > 0) {
     $params[':booker_id'] = $bookerId;
 }
 
-if ($areaId > 0) {
-    $whereConditions[] = "so.area_id = :area_id";
-    $params[':area_id'] = $areaId;
+if (!empty($selectedAreaIds)) {
+    $phList = [];
+    foreach ($selectedAreaIds as $idx => $aIdVal) {
+        $phKey = ":aid_" . $idx;
+        $phList[] = $phKey;
+        $params[$phKey] = $aIdVal;
+    }
+    $whereConditions[] = "so.area_id IN (" . implode(',', $phList) . ")";
 }
 
 if ($deliveryManId > 0) {
@@ -237,7 +295,7 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
             <a href="<?= BASE_URL ?>/modules/reports/daily_closing.php" class="btn btn-sm btn-outline-dark">
                 <i class="bi bi-clock-history me-1"></i> Daily Day Closing
             </a>
-            <a href="<?= BASE_URL ?>/modules/reports/loadsheet_print.php?date=<?= $date ?>&mode=<?= $mode ?>&booker_id=<?= $bookerId ?>&delivery_man_id=<?= $deliveryManId ?>&area_id=<?= $areaId ?>&autoprint=1" target="_blank" class="btn btn-sm btn-primary">
+            <a href="<?= BASE_URL ?>/modules/reports/loadsheet_print.php?date=<?= $date ?>&mode=<?= $mode ?>&booker_id=<?= $bookerId ?>&delivery_man_id=<?= $deliveryManId ?>&area_ids=<?= urlencode(implode(',', $selectedAreaIds)) ?>&area_id=<?= $areaId ?>&autoprint=1" target="_blank" class="btn btn-sm btn-primary">
                 <i class="bi bi-printer me-1"></i> Print 1-Page Minimal (Excel View)
             </a>
             <button type="button" class="btn btn-sm btn-success" onclick="exportLoadsheetToCSV();">
@@ -313,15 +371,17 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
     <!-- Filter Card (Hidden on Print) -->
     <div class="card border-0 shadow-sm rounded-3 mb-3 d-print-none">
         <div class="card-body p-3">
-            <form method="GET" action="<?= BASE_URL ?>/modules/reports/loadsheet.php" class="row g-2 align-items-end">
+            <form method="GET" action="<?= BASE_URL ?>/modules/reports/loadsheet.php" id="loadsheetFilterForm" class="row g-2 align-items-end">
                 <input type="hidden" name="mode" value="<?= htmlspecialchars($mode) ?>">
+                <input type="hidden" name="area_ids" id="areaIdsInput" value="<?= htmlspecialchars(implode(',', $selectedAreaIds)) ?>">
+
                 <div class="col-6 col-md-2">
                     <label class="form-label small fw-bold mb-1">Dispatch Date</label>
                     <input type="date" class="form-control form-control-sm" name="date" value="<?= htmlspecialchars($date) ?>" required>
                 </div>
                 <div class="col-6 col-md-3">
                     <label class="form-label small fw-bold mb-1">Order Booker</label>
-                    <select name="booker_id" class="form-select form-select-sm">
+                    <select name="booker_id" id="bookerSelect" class="form-select form-select-sm">
                         <option value="0">-- All Order Bookers --</option>
                         <?php foreach ($bookers as $b): ?>
                             <option value="<?= $b['id'] ?>" <?= $bookerId === (int)$b['id'] ? 'selected' : '' ?>>
@@ -332,7 +392,7 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
                 </div>
                 <div class="col-6 col-md-3">
                     <label class="form-label small fw-bold mb-1">Delivery Man / Driver</label>
-                    <select name="delivery_man_id" class="form-select form-select-sm">
+                    <select name="delivery_man_id" id="deliveryManSelect" class="form-select form-select-sm">
                         <option value="0">-- All Delivery Staff --</option>
                         <?php foreach ($deliveryStaff as $ds): ?>
                             <option value="<?= $ds['id'] ?>" <?= $deliveryManId === (int)$ds['id'] ? 'selected' : '' ?>>
@@ -342,11 +402,15 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
                     </select>
                 </div>
                 <div class="col-6 col-md-2">
-                    <label class="form-label small fw-bold mb-1">Market / Territory</label>
-                    <select name="area_id" class="form-select form-select-sm">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <label class="form-label small fw-bold mb-0">Market / Territory</label>
+                        <span id="areaScopeBadge" class="badge bg-secondary-subtle text-dark border small" style="font-size: 0.68rem;">All</span>
+                    </div>
+                    <select name="area_id" id="areaSelect" class="form-select form-select-sm">
+                        <!-- Populated dynamically based on staff selection and cadence -->
                         <option value="0">-- All Areas --</option>
-                        <?php foreach ($areas as $a): ?>
-                            <option value="<?= $a['id'] ?>" <?= $areaId === (int)$a['id'] ? 'selected' : '' ?>>
+                        <?php foreach ($allAreas as $a): ?>
+                            <option value="<?= $a['id'] ?>" <?= (in_array((int)$a['id'], $selectedAreaIds) || $areaId === (int)$a['id']) ? 'selected' : '' ?>>
                                 <?= htmlspecialchars($a['name']) ?>
                             </option>
                         <?php endforeach; ?>
@@ -356,7 +420,7 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
                     <button type="submit" class="btn btn-primary btn-sm w-100 fw-bold">
                         <i class="bi bi-funnel me-1"></i> Filter
                     </button>
-                    <a href="<?= BASE_URL ?>/modules/reports/loadsheet.php" class="btn btn-outline-secondary btn-sm" title="Reset Filters">
+                    <a href="<?= BASE_URL ?>/modules/reports/loadsheet.php?date=<?= urlencode($date) ?>&mode=<?= urlencode($mode) ?>" class="btn btn-outline-secondary btn-sm" title="Reset Filters">
                         <i class="bi bi-arrow-counterclockwise"></i>
                     </a>
                 </div>
@@ -616,6 +680,124 @@ function shareLoadsheetWhatsApp() {
                  `Status: Ready for Delivery`;
     window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
 }
+
+// Staff-to-Territory Area Mapping & Dynamic Filter Synchronization
+const staffAreasData = {
+    cadence: <?= json_encode($cadence) ?>,
+    bookers: <?= json_encode($bookerAreasMap) ?>,
+    riders: <?= json_encode($riderAreasMap) ?>,
+    all: <?= json_encode($allAreas) ?>,
+    selectedIds: <?= json_encode($selectedAreaIds) ?>,
+    selectedAreaId: <?= (int)$areaId ?>
+};
+
+function syncTerritoryOptions() {
+    const bookerVal = document.getElementById('bookerSelect')?.value || '0';
+    const riderVal = document.getElementById('deliveryManSelect')?.value || '0';
+    const areaSelect = document.getElementById('areaSelect');
+    const badge = document.getElementById('areaScopeBadge');
+    if (!areaSelect) return;
+
+    let targetAreas = [];
+    let isScoped = false;
+
+    if (bookerVal !== '0' && staffAreasData.bookers[bookerVal]) {
+        targetAreas = staffAreasData.bookers[bookerVal];
+        isScoped = true;
+    } else if (riderVal !== '0' && staffAreasData.riders[riderVal]) {
+        targetAreas = staffAreasData.riders[riderVal];
+        isScoped = true;
+    } else {
+        targetAreas = staffAreasData.all;
+    }
+
+    const currentVal = areaSelect.value;
+    areaSelect.innerHTML = '';
+
+    if (isScoped) {
+        if (badge) {
+            badge.className = 'badge bg-primary text-white border small';
+            badge.textContent = 'Assigned (' + targetAreas.length + ')';
+        }
+
+        if (targetAreas.length > 0) {
+            const allAssignedOpt = document.createElement('option');
+            allAssignedOpt.value = 'all_assigned';
+            allAssignedOpt.textContent = `-- All Assigned Areas (${targetAreas.length} Areas) --`;
+            areaSelect.appendChild(allAssignedOpt);
+
+            targetAreas.forEach(a => {
+                const opt = document.createElement('option');
+                opt.value = a.id;
+                opt.textContent = a.name + (a.code ? ` (${a.code})` : '');
+                if (staffAreasData.selectedAreaId == a.id || (staffAreasData.selectedIds.length === 1 && staffAreasData.selectedIds[0] == a.id)) {
+                    opt.selected = true;
+                }
+                areaSelect.appendChild(opt);
+            });
+
+            if (staffAreasData.selectedIds.length > 1) {
+                areaSelect.value = 'all_assigned';
+            }
+        } else {
+            const opt = document.createElement('option');
+            opt.value = '0';
+            opt.textContent = `-- No Areas Assigned (${staffAreasData.cadence}) --`;
+            areaSelect.appendChild(opt);
+        }
+    } else {
+        if (badge) {
+            badge.className = 'badge bg-secondary-subtle text-dark border small';
+            badge.textContent = 'All';
+        }
+        const allOpt = document.createElement('option');
+        allOpt.value = '0';
+        allOpt.textContent = `-- All Areas (${targetAreas.length} Areas) --`;
+        areaSelect.appendChild(allOpt);
+
+        targetAreas.forEach(a => {
+            const opt = document.createElement('option');
+            opt.value = a.id;
+            opt.textContent = a.name + (a.code ? ` (${a.code})` : '');
+            if (staffAreasData.selectedAreaId == a.id) {
+                opt.selected = true;
+            }
+            areaSelect.appendChild(opt);
+        });
+    }
+}
+
+document.getElementById('loadsheetFilterForm')?.addEventListener('submit', function() {
+    const areaSelect = document.getElementById('areaSelect');
+    const hiddenIds = document.getElementById('areaIdsInput');
+    const bookerVal = document.getElementById('bookerSelect')?.value || '0';
+    const riderVal = document.getElementById('deliveryManSelect')?.value || '0';
+
+    if (areaSelect && areaSelect.value === 'all_assigned') {
+        let assigned = [];
+        if (bookerVal !== '0' && staffAreasData.bookers[bookerVal]) {
+            assigned = staffAreasData.bookers[bookerVal];
+        } else if (riderVal !== '0' && staffAreasData.riders[riderVal]) {
+            assigned = staffAreasData.riders[riderVal];
+        }
+        if (assigned.length > 0) {
+            hiddenIds.value = assigned.map(a => a.id).join(',');
+            areaSelect.value = '0';
+        }
+    } else if (areaSelect && areaSelect.value !== '0') {
+        hiddenIds.value = areaSelect.value;
+    } else {
+        hiddenIds.value = '';
+    }
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+    const bSel = document.getElementById('bookerSelect');
+    const rSel = document.getElementById('deliveryManSelect');
+    if (bSel) bSel.addEventListener('change', syncTerritoryOptions);
+    if (rSel) rSel.addEventListener('change', syncTerritoryOptions);
+    syncTerritoryOptions();
+});
 </script>
 
 <?php require_once dirname(__DIR__, 2) . '/includes/footer.php'; ?>

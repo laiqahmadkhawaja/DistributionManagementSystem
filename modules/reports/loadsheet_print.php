@@ -44,12 +44,32 @@ if ($deliveryManId > 0) {
     if ($d) $deliveryName = $d['full_name'] . ' (' . $d['employee_code'] . ')';
 }
 
+// Parse Multi-Area Selection (e.g. area_ids=1,2)
+$selectedAreaIds = [];
+if (!empty($_GET['area_ids'])) {
+    if (is_array($_GET['area_ids'])) {
+        $selectedAreaIds = array_filter(array_map('intval', $_GET['area_ids']));
+    } else {
+        $selectedAreaIds = array_filter(array_map('intval', explode(',', $_GET['area_ids'])));
+    }
+} elseif ($areaId > 0) {
+    $selectedAreaIds = [$areaId];
+}
+
 $areaName = 'All Market Areas';
-if ($areaId > 0) {
-    $aStmt = $pdo->prepare("SELECT name FROM areas WHERE id = ?");
-    $aStmt->execute([$areaId]);
-    $a = $aStmt->fetch();
-    if ($a) $areaName = $a['name'];
+if (!empty($selectedAreaIds)) {
+    if (count($selectedAreaIds) === 1) {
+        $aStmt = $pdo->prepare("SELECT name FROM areas WHERE id = ?");
+        $aStmt->execute([reset($selectedAreaIds)]);
+        $a = $aStmt->fetch();
+        if ($a) $areaName = $a['name'];
+    } else {
+        $inPl = implode(',', array_fill(0, count($selectedAreaIds), '?'));
+        $aStmt = $pdo->prepare("SELECT name FROM areas WHERE id IN ({$inPl})");
+        $aStmt->execute($selectedAreaIds);
+        $names = $aStmt->fetchAll(PDO::FETCH_COLUMN);
+        $areaName = implode(', ', $names) . ' (' . count($selectedAreaIds) . ' Areas)';
+    }
 }
 
 // Build Query
@@ -68,9 +88,14 @@ if ($bookerId > 0) {
     $params[':booker_id'] = $bookerId;
 }
 
-if ($areaId > 0) {
-    $whereConditions[] = "so.area_id = :area_id";
-    $params[':area_id'] = $areaId;
+if (!empty($selectedAreaIds)) {
+    $phList = [];
+    foreach ($selectedAreaIds as $idx => $aIdVal) {
+        $phKey = ":aid_" . $idx;
+        $phList[] = $phKey;
+        $params[$phKey] = $aIdVal;
+    }
+    $whereConditions[] = "so.area_id IN (" . implode(',', $phList) . ")";
 }
 
 if ($deliveryManId > 0) {

@@ -79,6 +79,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_doc_terms'])) {
     }
 }
 
+// Handle Route & Territory Policy Update POST
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_route_policy'])) {
+    requirePermission('settings', 'edit');
+
+    $cadence = sanitize($_POST['route_assignment_cadence'] ?? 'weekly');
+    $coverageTracking = isset($_POST['route_coverage_tracking']) ? '1' : '0';
+    $flexibleDays = isset($_POST['route_allow_flexible_days']) ? '1' : '0';
+
+    try {
+        $pdo->beginTransaction();
+        
+        $upsertSetting = $pdo->prepare("
+            INSERT INTO `settings` (`setting_key`, `setting_value`, `description`, `updated_at`)
+            VALUES (?, ?, ?, NOW())
+            ON DUPLICATE KEY UPDATE `setting_value` = VALUES(`setting_value`), `updated_at` = NOW()
+        ");
+
+        $upsertSetting->execute(['route_assignment_cadence', $cadence, 'Territory Route & Area Assignment Cadence: weekly, daily, monthly, fixed']);
+        $upsertSetting->execute(['route_coverage_tracking', $coverageTracking, 'Shop Visit & Booking Progress Coverage Tracking: 1 or 0']);
+        $upsertSetting->execute(['route_allow_flexible_days', $flexibleDays, 'Allow Flexible Day Area Visit within Cadence: 1 or 0']);
+
+        logAudit($pdo, 'settings', 1, 'update_route_policy', null, ['cadence' => $cadence, 'coverage_tracking' => $coverageTracking]);
+        $pdo->commit();
+
+        setFlashMessage('success', 'Territory route cadence & coverage policy updated successfully.');
+        redirect(BASE_URL . '/modules/settings/index.php?tab=routes');
+
+    } catch (Exception $e) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        setFlashMessage('error', 'Error updating route policy: ' . $e->getMessage());
+        redirect(BASE_URL . '/modules/settings/index.php?tab=routes');
+    }
+}
+
 // Handle RBAC Permission Matrix Update POST
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_permissions'])) {
     requirePermission('settings', 'edit');
@@ -128,6 +164,11 @@ $gpDirectiveVal = getSetting($pdo, 'gatepass_security_directive', 'This document
 $custTermsVal = getSetting($pdo, 'customer_ledger_terms', 'This financial statement reflects all invoiced sales, payments, and returns posted up to the printed date. Any discrepancy or reconciliation dispute must be reported in writing within 7 days.');
 $suppTermsVal = getSetting($pdo, 'supplier_ledger_terms', 'All goods receipts (GRNs), payments, and credit adjustments are subject to final store audit and warehouse physical verification. Statement accounts payable subject to agreed supplier payment terms.');
 
+// Territory Route & Cadence Settings
+$routeCadenceVal = getSetting($pdo, 'route_assignment_cadence', 'weekly');
+$routeCoverageVal = getSetting($pdo, 'route_coverage_tracking', '1');
+$routeFlexibleVal = getSetting($pdo, 'route_allow_flexible_days', '1');
+
 $pageTitle = 'Settings & RBAC Security';
 require_once dirname(__DIR__, 2) . '/includes/header.php';
 ?>
@@ -156,6 +197,11 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
     <li class="nav-item">
         <button class="nav-link <?= $activeTab === 'terms' ? 'active' : '' ?> fw-semibold" id="terms-tab" data-bs-toggle="pill" data-bs-target="#terms-pane" type="button">
             <i class="bi bi-file-earmark-text me-1"></i> Document Terms & Directives
+        </button>
+    </li>
+    <li class="nav-item">
+        <button class="nav-link <?= $activeTab === 'routes' ? 'active' : '' ?> fw-semibold" id="routes-tab" data-bs-toggle="pill" data-bs-target="#routes-pane" type="button">
+            <i class="bi bi-geo-alt-fill me-1"></i> Area & Route Policy
         </button>
     </li>
     <li class="nav-item">
@@ -260,6 +306,75 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
                     <div class="mt-4">
                         <button type="submit" class="btn btn-primary px-4">
                             <i class="bi bi-check-lg me-1"></i> Save Document Terms
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Area & Route Assignment Policy Pane -->
+    <div class="tab-pane fade <?= $activeTab === 'routes' ? 'show active' : '' ?>" id="routes-pane">
+        <div class="card border-0 shadow-sm rounded-3">
+            <div class="card-header bg-white py-3 border-0">
+                <h6 class="fw-bold mb-0 text-dark"><i class="bi bi-geo-alt-fill text-primary me-2"></i>Field Sales Route & Territory Assignment Policy</h6>
+                <small class="text-muted">Configure how territories are assigned to order bookers & delivery riders (Weekly, Daily, Monthly, or Fixed)</small>
+            </div>
+            <div class="card-body p-4">
+                <form method="POST" action="<?= BASE_URL ?>/modules/settings/index.php">
+                    <?= getCsrfField() ?>
+                    <input type="hidden" name="save_route_policy" value="1">
+
+                    <div class="mb-4">
+                        <label class="form-label small fw-bold text-dark d-flex align-items-center">
+                            <i class="bi bi-calendar-week text-primary me-2"></i>Territory Assignment Cadence (فریکوئنسی / پلاننگ میکانزم)
+                        </label>
+                        <select class="form-select" name="route_assignment_cadence" required>
+                            <option value="weekly" <?= $routeCadenceVal === 'weekly' ? 'selected' : '' ?>>
+                                Weekly Journey Plan (PJP) - ہر ہفتے کے لحاظ سے روٹس اور ایریاز اسائن ہوں گے (Recommended for FMCG)
+                            </option>
+                            <option value="daily" <?= $routeCadenceVal === 'daily' ? 'selected' : '' ?>>
+                                Daily Beat Assignment - روزانہ کی بنیاد پر مخصوص دن کے لیے ایریاز اسائن ہوں گے
+                            </option>
+                            <option value="monthly" <?= $routeCadenceVal === 'monthly' ? 'selected' : '' ?>>
+                                Monthly Cycle Routing - پورے مہینے کے روٹ سائیکل کے مطابق ایریاز اسائن ہوں گے
+                            </option>
+                            <option value="fixed" <?= $routeCadenceVal === 'fixed' ? 'selected' : '' ?>>
+                                Fixed Permanent Assignment - ہر آرڈر بکر اور رائڈر کا مستقل فکسڈ علاقہ ہوگا
+                            </option>
+                        </select>
+                        <small class="text-muted mt-1 d-block">
+                            Defines how the Territory Assignment management view (<code>modules/areas/index.php</code>) scopes assignments for Order Bookers and Delivery Drivers.
+                        </small>
+                    </div>
+
+                    <div class="card bg-light border p-3 mb-4 rounded-3">
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" name="route_coverage_tracking" id="route_coverage_tracking" value="1" <?= $routeCoverageVal === '1' ? 'checked' : '' ?>>
+                            <label class="form-check-label fw-bold text-dark small" for="route_coverage_tracking">
+                                Enable Market Shop Coverage Percentage & Progress Tracking (شاپ وزٹ و کوریج ٹریکنگ)
+                            </label>
+                        </div>
+                        <small class="text-muted ms-4 d-block">
+                            When enabled, displays live analytics on territory coverage: registered shops, unique shops booked in the scheduled period, and visual percentage progress bars (e.g. 10/10 shops • 100% covered).
+                        </small>
+                    </div>
+
+                    <div class="card bg-light border p-3 mb-4 rounded-3">
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" name="route_allow_flexible_days" id="route_allow_flexible_days" value="1" <?= $routeFlexibleVal === '1' ? 'checked' : '' ?>>
+                            <label class="form-check-label fw-bold text-dark small" for="route_allow_flexible_days">
+                                Allow Flexible Day Area Execution within Scheduled Cadence (لچکدار دن کی ترتیب)
+                            </label>
+                        </div>
+                        <small class="text-muted ms-4 d-block">
+                            Order bookers and riders have the operational autonomy to decide which assigned area to cover on which day of the week, provided all assigned shops are completed during the scheduled period.
+                        </small>
+                    </div>
+
+                    <div class="mt-4">
+                        <button type="submit" class="btn btn-primary px-4">
+                            <i class="bi bi-check-lg me-1"></i> Save Route & Area Policy
                         </button>
                     </div>
                 </form>

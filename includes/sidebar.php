@@ -138,6 +138,11 @@ try {
                 </a>
             </li>
             <li class="nav-item">
+                <a class="nav-link" href="<?= BASE_URL ?>/modules/accounts/index.php">
+                    <i class="bi bi-bank"></i> Bank & Wallet Accounts
+                </a>
+            </li>
+            <li class="nav-item">
                 <a class="nav-link" href="<?= BASE_URL ?>/modules/expenses/index.php">
                     <i class="bi bi-receipt"></i> Company Expenses
                 </a>
@@ -184,7 +189,7 @@ try {
             </li>
             <li class="nav-item">
                 <a class="nav-link" href="<?= BASE_URL ?>/modules/areas/index.php">
-                    <i class="bi bi-geo-alt"></i> Sales Territories / Areas
+                    <i class="bi bi-geo-alt"></i> Routes & Territories (روٹس و ایریاز)
                 </a>
             </li>
             <li class="nav-item">

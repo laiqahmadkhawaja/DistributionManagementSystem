@@ -117,11 +117,13 @@ CREATE TABLE `areas` (
     `description` TEXT NULL,
     `assigned_order_booker_id` INT UNSIGNED NULL,
     `assigned_salesman_id` INT UNSIGNED NULL,
+    `assigned_rider_id` INT UNSIGNED NULL,
     `status` ENUM('active', 'inactive') DEFAULT 'active',
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT `fk_area_parent` FOREIGN KEY (`parent_id`) REFERENCES `areas` (`id`) ON DELETE SET NULL,
     CONSTRAINT `fk_area_ob` FOREIGN KEY (`assigned_order_booker_id`) REFERENCES `employees` (`id`) ON DELETE SET NULL,
-    CONSTRAINT `fk_area_sm` FOREIGN KEY (`assigned_salesman_id`) REFERENCES `employees` (`id`) ON DELETE SET NULL
+    CONSTRAINT `fk_area_sm` FOREIGN KEY (`assigned_salesman_id`) REFERENCES `employees` (`id`) ON DELETE SET NULL,
+    CONSTRAINT `fk_area_rider` FOREIGN KEY (`assigned_rider_id`) REFERENCES `employees` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 DROP TABLE IF EXISTS `sub_areas`;
@@ -140,6 +142,12 @@ CREATE TABLE `employee_area_assignments` (
     `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     `employee_id` INT UNSIGNED NOT NULL,
     `area_id` INT UNSIGNED NOT NULL,
+    `assignment_type` ENUM('fixed', 'daily', 'weekly', 'monthly') NOT NULL DEFAULT 'fixed',
+    `schedule_key` VARCHAR(50) NOT NULL DEFAULT 'ALL',
+    `day_of_week` VARCHAR(20) NOT NULL DEFAULT 'Flexible',
+    `role_type` ENUM('order_booker', 'delivery_man', 'salesman') NOT NULL DEFAULT 'order_booker',
+    `status` ENUM('active', 'completed', 'inactive') NOT NULL DEFAULT 'active',
+    `notes` VARCHAR(255) NULL,
     `assigned_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE KEY `uk_emp_area` (`employee_id`, `area_id`),
     CONSTRAINT `fk_eaa_emp` FOREIGN KEY (`employee_id`) REFERENCES `employees` (`id`) ON DELETE CASCADE,
@@ -765,6 +773,28 @@ CREATE TABLE `cash_handovers` (
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT `fk_ch_dm` FOREIGN KEY (`delivery_man_id`) REFERENCES `employees` (`id`),
     CONSTRAINT `fk_ch_verby` FOREIGN KEY (`verified_by`) REFERENCES `users` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 18b. Official Company Bank Accounts & Payment Receiving Wallets
+DROP TABLE IF EXISTS `company_accounts`;
+CREATE TABLE `company_accounts` (
+    `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `account_type` ENUM('bank', 'wallet', 'raast', 'other') NOT NULL DEFAULT 'bank',
+    `bank_name` VARCHAR(120) NOT NULL,
+    `account_title` VARCHAR(150) NOT NULL,
+    `account_number` VARCHAR(100) NOT NULL,
+    `iban` VARCHAR(50) NULL,
+    `branch_name` VARCHAR(150) NULL,
+    `branch_code` VARCHAR(50) NULL,
+    `raast_id` VARCHAR(100) NULL,
+    `qr_code_image` VARCHAR(255) NULL,
+    `notes` TEXT NULL,
+    `is_primary` TINYINT(1) DEFAULT 0,
+    `is_active` TINYINT(1) DEFAULT 1,
+    `show_on_bills` TINYINT(1) DEFAULT 1,
+    `display_order` INT DEFAULT 0,
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 19. Expenses & Categories
