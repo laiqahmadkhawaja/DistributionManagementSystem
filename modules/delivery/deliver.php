@@ -135,7 +135,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $dpStmt->execute([$assignmentId, $delivery['customer_id'], $receiverName, $receiverPhone, $notes]);
 
         // Process Payment Recoveries (if any payment was collected)
-        $collectorId = $currentEmp['id'] ?? $delivery['delivery_man_id'];
+        // If delivery was assigned to a delivery man, he holds the physical cash in custody
+        $collectorId = !empty($delivery['delivery_man_id']) ? (int)$delivery['delivery_man_id'] : ($currentEmp['id'] ?? null);
         $paymentsMade = [
             'cash' => $cashAmount,
             'jazzcash' => $jazzcashAmount,
