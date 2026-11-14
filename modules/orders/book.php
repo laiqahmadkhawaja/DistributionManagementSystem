@@ -245,12 +245,12 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
                     <!-- Price Tier Selection (Trade Price, Wholesale, Retail) -->
                     <div class="mb-3">
                         <label for="price_tier" class="form-label small fw-bold text-dark">
-                            <i class="bi bi-tag-fill text-primary me-1"></i> Order Pricing Tier / ریٹ کی قسم
+                            <i class="bi bi-tag-fill text-primary me-1"></i> Order Pricing Tier
                         </label>
                         <select class="form-select form-select-sm fw-bold border-primary text-primary" id="price_tier" name="price_tier">
-                            <option value="trade_price" selected>Trade Price (TP) - ٹریڈ ریٹ (Standard)</option>
-                            <option value="wholesale_price">Wholesale Price - ہول سیل ریٹ (Bulk Discount)</option>
-                            <option value="retail_price">Retail Price (MRP) - ریٹیل پرائس (Full Price)</option>
+                            <option value="trade_price" selected>Trade Price (TP) - Standard</option>
+                            <option value="wholesale_price">Wholesale Price - Bulk Discount</option>
+                            <option value="retail_price">Retail Price (MRP) - Full Price</option>
                         </select>
                         <small class="text-muted" style="font-size: 0.72rem;">Changing rate tier recalculates rates for all products</small>
                     </div>
@@ -294,9 +294,9 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
                         <table class="table table-bordered table-sm align-middle" id="order-items-table">
                             <thead class="table-light small">
                                 <tr>
-                                    <th style="min-width: 170px;">Product / پروڈکٹ</th>
-                                    <th style="width: 110px;">Packaging Unit / یونٹ</th>
-                                    <th style="width: 80px;">Qty / تعداد</th>
+                                    <th style="min-width: 170px;">Product</th>
+                                    <th style="width: 110px;">Packaging Unit</th>
+                                    <th style="width: 80px;">Qty</th>
                                     <th style="width: 105px;">Rate (Rs)</th>
                                     <th style="width: 70px;">Disc</th>
                                     <th style="width: 95px;">Total</th>
@@ -506,7 +506,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     const mult = getUnitMultiplier(u.id, prod.base_unit_id);
                     let label = `${u.name}`;
                     if (mult > 1) {
-                        label += ` (Ã—${mult} ${baseUnit ? baseUnit.code : ''})`;
+                        label += ` (x${mult} ${baseUnit ? baseUnit.code : ''})`;
                     }
                     unitSel.innerHTML += `<option value="${u.id}">${label}</option>`;
                 }

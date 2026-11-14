@@ -327,20 +327,20 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
 
                     <div class="mb-4">
                         <label class="form-label small fw-bold text-dark d-flex align-items-center">
-                            <i class="bi bi-calendar-week text-primary me-2"></i>Territory Assignment Cadence (فریکوئنسی / پلاننگ میکانزم)
+                            <i class="bi bi-calendar-week text-primary me-2"></i>Territory Assignment Cadence
                         </label>
                         <select class="form-select" name="route_assignment_cadence" required>
                             <option value="weekly" <?= $routeCadenceVal === 'weekly' ? 'selected' : '' ?>>
-                                Weekly Journey Plan (PJP) - ہر ہفتے کے لحاظ سے روٹس اور ایریاز اسائن ہوں گے (Recommended for FMCG)
+                                Weekly Journey Plan (PJP) - Routes and areas are scheduled weekly (Recommended for FMCG)
                             </option>
                             <option value="daily" <?= $routeCadenceVal === 'daily' ? 'selected' : '' ?>>
-                                Daily Beat Assignment - روزانہ کی بنیاد پر مخصوص دن کے لیے ایریاز اسائن ہوں گے
+                                Daily Beat Assignment - Areas are scheduled on a specific day-by-day basis
                             </option>
                             <option value="monthly" <?= $routeCadenceVal === 'monthly' ? 'selected' : '' ?>>
-                                Monthly Cycle Routing - پورے مہینے کے روٹ سائیکل کے مطابق ایریاز اسائن ہوں گے
+                                Monthly Cycle Routing - Scheduled across the monthly routing cycle
                             </option>
                             <option value="fixed" <?= $routeCadenceVal === 'fixed' ? 'selected' : '' ?>>
-                                Fixed Permanent Assignment - ہر آرڈر بکر اور رائڈر کا مستقل فکسڈ علاقہ ہوگا
+                                Fixed Permanent Assignment - Order Bookers and Riders have permanent fixed areas
                             </option>
                         </select>
                         <small class="text-muted mt-1 d-block">
@@ -352,11 +352,11 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
                         <div class="form-check form-switch mb-2">
                             <input class="form-check-input" type="checkbox" name="route_coverage_tracking" id="route_coverage_tracking" value="1" <?= $routeCoverageVal === '1' ? 'checked' : '' ?>>
                             <label class="form-check-label fw-bold text-dark small" for="route_coverage_tracking">
-                                Enable Market Shop Coverage Percentage & Progress Tracking (شاپ وزٹ و کوریج ٹریکنگ)
+                                Enable Market Shop Coverage Percentage & Progress Tracking
                             </label>
                         </div>
                         <small class="text-muted ms-4 d-block">
-                            When enabled, displays live analytics on territory coverage: registered shops, unique shops booked in the scheduled period, and visual percentage progress bars (e.g. 10/10 shops • 100% covered).
+                            When enabled, displays live analytics on territory coverage: registered shops, unique shops booked in the scheduled period, and visual percentage progress bars (e.g. 10/10 shops &bull; 100% covered).
                         </small>
                     </div>
 
@@ -364,7 +364,7 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
                         <div class="form-check form-switch mb-2">
                             <input class="form-check-input" type="checkbox" name="route_allow_flexible_days" id="route_allow_flexible_days" value="1" <?= $routeFlexibleVal === '1' ? 'checked' : '' ?>>
                             <label class="form-check-label fw-bold text-dark small" for="route_allow_flexible_days">
-                                Allow Flexible Day Area Execution within Scheduled Cadence (لچکدار دن کی ترتیب)
+                                Allow Flexible Day Area Execution within Scheduled Cadence
                             </label>
                         </div>
                         <small class="text-muted ms-4 d-block">

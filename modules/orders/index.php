@@ -78,7 +78,7 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
     </div>
     <div class="d-flex gap-2">
         <a href="<?= BASE_URL ?>/modules/reports/loadsheet.php" class="btn btn-outline-primary btn-touch shadow-sm">
-            <i class="bi bi-truck-flatbed me-1"></i> Vehicle Load Sheet (لوڈ شیٹ)
+            <i class="bi bi-truck-flatbed me-1"></i> Vehicle Load Sheet
         </a>
         <a href="<?= BASE_URL ?>/modules/orders/book.php" class="btn btn-primary btn-touch shadow-sm">
             <i class="bi bi-plus-circle me-1"></i> Book New Order

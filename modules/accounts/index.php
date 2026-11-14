@@ -170,7 +170,7 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
     </div>
     <div class="d-flex flex-wrap gap-2">
         <a href="<?= BASE_URL ?>/modules/accounts/payment_details.php" target="_blank" class="btn btn-sm btn-success shadow-sm">
-            <i class="bi bi-qr-code me-1"></i> Open Customer Payment Screen (ادائیگی کی تفصیلات)
+            <i class="bi bi-qr-code me-1"></i> Open Customer Payment Screen
         </a>
         <?php if ($isAdminOrAccountant): ?>
             <button type="button" class="btn btn-sm btn-primary shadow-sm" data-confirm-trigger data-confirm-target="panel-create-account">
@@ -361,7 +361,7 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
         </div>
         <div>
             <button type="button" class="btn btn-sm btn-outline-dark" onclick="copyAllAccountsToClipboard();">
-                <i class="bi bi-clipboard me-1"></i> Copy All Details (ٹیکسٹ کاپی کریں)
+                <i class="bi bi-clipboard me-1"></i> Copy All Details
             </button>
         </div>
     </div>

@@ -149,12 +149,12 @@ $currUser = getCurrentUser();
     </li>
     <li class="nav-item">
         <a class="nav-link btn-touch fw-semibold text-primary" href="<?= BASE_URL ?>/modules/reports/loadsheet.php">
-            <i class="bi bi-truck-flatbed me-1"></i> Dispatch Load Sheet (لوڈ شیٹ)
+            <i class="bi bi-truck-flatbed me-1"></i> Dispatch Load Sheet
         </a>
     </li>
     <li class="nav-item">
         <a class="nav-link btn-touch fw-semibold text-success" href="<?= BASE_URL ?>/modules/reports/daily_closing.php">
-            <i class="bi bi-safe2 me-1"></i> Daily Day Closing (ڈیلی کلوزنگ)
+            <i class="bi bi-safe2 me-1"></i> Daily Day Closing
         </a>
     </li>
 </ul>

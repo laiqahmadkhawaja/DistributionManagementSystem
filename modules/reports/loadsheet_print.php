@@ -317,11 +317,11 @@ foreach ($skuItems as $item) {
 
 <div class="no-print-bar">
     <div>
-        <strong><?= $mode === 'booker' ? 'Order Booker Daily Booking Sheet' : 'Vehicle Dispatch Load Sheet' ?></strong> Â· <?= date('d-M-Y', strtotime($date)) ?>
+        <strong><?= $mode === 'booker' ? 'Order Booker Daily Booking Sheet' : 'Vehicle Dispatch Load Sheet' ?></strong> &bull; <?= date('d-M-Y', strtotime($date)) ?>
     </div>
     <div style="display: flex; gap: 8px;">
-        <button onclick="window.print();">ðŸ–¨ï¸  Print Page (1-Page Excel View)</button>
-        <a href="<?= BASE_URL ?>/modules/reports/loadsheet.php?date=<?= $date ?>&mode=<?= $mode ?>&booker_id=<?= $bookerId ?>">â†  Back to Loadsheet</a>
+        <button onclick="window.print();" style="display:inline-flex; align-items:center; gap:4px; font-weight:600; cursor:pointer;">Print Page (1-Page Excel View)</button>
+        <a href="<?= BASE_URL ?>/modules/reports/loadsheet.php?date=<?= $date ?>&mode=<?= $mode ?>&booker_id=<?= $bookerId ?>" style="display:inline-flex; align-items:center; gap:4px;">&larr; Back to Loadsheet</a>
     </div>
 </div>
 
@@ -331,11 +331,11 @@ foreach ($skuItems as $item) {
         <tr>
             <td>
                 <div class="comp-name"><?= htmlspecialchars($company['name'] ?? APP_NAME) ?></div>
-                <div class="comp-sub"><?= htmlspecialchars($company['address'] ?? 'Plot 45, Small Industrial Estate') ?> Â· Phone: <?= htmlspecialchars($company['phone'] ?? '+92 300 1234567') ?></div>
+                <div class="comp-sub"><?= htmlspecialchars($company['address'] ?? 'Plot 45, Small Industrial Estate') ?> &bull; Phone: <?= htmlspecialchars($company['phone'] ?? '+92 300 1234567') ?></div>
             </td>
             <td class="text-end">
                 <div class="doc-title-badge">
-                    <?= $mode === 'booker' ? 'ORDER BOOKER DAILY SUMMARY / آرڈر بکر سمری' : 'VEHICLE LOAD SHEET / گاڑی کی لوڈ شیٹ' ?>
+                    <?= $mode === 'booker' ? 'ORDER BOOKER DAILY SUMMARY' : 'VEHICLE LOAD SHEET' ?>
                 </div>
                 <div style="font-size: 8pt; font-weight: bold; margin-top: 2px;">Date: <?= date('d-M-Y (l)', strtotime($date)) ?></div>
             </td>
@@ -354,7 +354,7 @@ foreach ($skuItems as $item) {
 
     <!-- Table 1: Item Loading Matrix -->
     <div class="section-title">
-        1. <?= $mode === 'booker' ? 'Items Booked Summary (آرڈر شدہ آئٹمز کی سمری)' : 'Consolidated Vehicle Loading Matrix (گاڑی میں لوڈ ہونے والا کل مال)' ?>
+        1. <?= $mode === 'booker' ? 'Items Booked Summary' : 'Consolidated Vehicle Loading Matrix' ?>
     </div>
     <table class="excel-table">
         <thead>
@@ -367,7 +367,7 @@ foreach ($skuItems as $item) {
                 <th class="text-end" style="width: 65px;">Booked Qty</th>
                 <th class="text-end" style="width: 75px;">Rate (TP)</th>
                 <th class="text-end" style="width: 85px;">Total Amount</th>
-                <th class="text-center" style="width: 55px;">Loaded âœ“</th>
+                <th class="text-center" style="width: 55px;">Loaded [&check;]</th>
                 <th class="text-center" style="width: 55px;">Delivered</th>
             </tr>
         </thead>
@@ -405,7 +405,7 @@ foreach ($skuItems as $item) {
 
     <!-- Table 2: Shop-by-Shop Orders List -->
     <div class="section-title">
-        2. Shop-by-Shop Delivery Drop List (دکان وار ڈیلیوری اور بلز کی لسٹ)
+        2. Shop-by-Shop Delivery Drop List
     </div>
     <table class="excel-table">
         <thead>

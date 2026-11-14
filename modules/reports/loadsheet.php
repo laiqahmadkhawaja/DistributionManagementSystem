@@ -281,28 +281,28 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
 
 <div class="dms-loadsheet-wrapper">
     <!-- Header Controls (Hidden on Print) -->
-    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-3 gap-2 d-print-none">
+    <div class="d-flex flex-column flex-xl-row justify-content-between align-items-start align-items-xl-center mb-3 gap-2 d-print-none">
         <div>
             <div class="d-flex align-items-center gap-2">
-                <a href="<?= BASE_URL ?>/modules/reports/index.php" class="btn btn-sm btn-outline-secondary">
-                    <i class="bi bi-arrow-left me-1"></i> Reports Hub
+                <a href="<?= BASE_URL ?>/modules/reports/index.php" class="btn btn-sm btn-outline-secondary" title="Return to Reports Hub">
+                    <i class="bi bi-arrow-left"></i> <span class="d-none d-sm-inline">Reports</span>
                 </a>
-                <h4 class="fw-bold mb-0 text-dark"><i class="bi bi-truck-flatbed text-primary me-2"></i>Dispatch Load Sheet (لوڈ شیٹ)</h4>
+                <h4 class="fw-bold mb-0 text-dark"><i class="bi bi-truck-flatbed text-primary me-2"></i>Dispatch Load Sheet</h4>
             </div>
             <small class="text-muted">Consolidated vehicle loading summary & booker order delivery dispatch sheet</small>
         </div>
-        <div class="d-flex flex-wrap gap-2">
+        <div class="d-flex flex-wrap align-items-center gap-2">
             <a href="<?= BASE_URL ?>/modules/reports/daily_closing.php" class="btn btn-sm btn-outline-dark">
-                <i class="bi bi-clock-history me-1"></i> Daily Day Closing
+                <i class="bi bi-clock-history me-1"></i> Day Closing
             </a>
             <a href="<?= BASE_URL ?>/modules/reports/loadsheet_print.php?date=<?= $date ?>&mode=<?= $mode ?>&booker_id=<?= $bookerId ?>&delivery_man_id=<?= $deliveryManId ?>&area_ids=<?= urlencode(implode(',', $selectedAreaIds)) ?>&area_id=<?= $areaId ?>&autoprint=1" target="_blank" class="btn btn-sm btn-primary">
-                <i class="bi bi-printer me-1"></i> Print 1-Page Minimal (Excel View)
+                <i class="bi bi-printer me-1"></i> Print Excel View
             </a>
             <button type="button" class="btn btn-sm btn-success" onclick="exportLoadsheetToCSV();">
-                <i class="bi bi-file-earmark-excel me-1"></i> Export Excel (.CSV)
+                <i class="bi bi-file-earmark-excel me-1"></i> Export CSV
             </button>
-            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="shareLoadsheetWhatsApp();">
-                <i class="bi bi-whatsapp me-1 text-success"></i> Share WhatsApp
+            <button type="button" class="btn btn-sm btn-outline-success" onclick="shareLoadsheetWhatsApp();">
+                <i class="bi bi-whatsapp me-1"></i> WhatsApp
             </button>
         </div>
     </div>
@@ -311,12 +311,12 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
     <ul class="nav nav-pills mb-3 d-print-none gap-2">
         <li class="nav-item">
             <a class="nav-link <?= $mode === 'dispatch' ? 'active' : 'bg-light text-dark border' ?> fw-semibold py-1 px-3" href="<?= BASE_URL ?>/modules/reports/loadsheet.php?mode=dispatch&date=<?= $date ?>&booker_id=<?= $bookerId ?>&delivery_man_id=<?= $deliveryManId ?>&area_id=<?= $areaId ?>">
-                <i class="bi bi-truck-flatbed me-1"></i> 1. Vehicle Dispatch Load Sheet (گاڑی کی لوڈ شیٹ)
+                <i class="bi bi-truck-flatbed me-1"></i> 1. Vehicle Dispatch Load Sheet
             </a>
         </li>
         <li class="nav-item">
             <a class="nav-link <?= $mode === 'booker' ? 'active' : 'bg-light text-dark border' ?> fw-semibold py-1 px-3" href="<?= BASE_URL ?>/modules/reports/loadsheet.php?mode=booker&date=<?= $date ?>&booker_id=<?= $bookerId ?>&delivery_man_id=<?= $deliveryManId ?>&area_id=<?= $areaId ?>">
-                <i class="bi bi-person-badge me-1"></i> 2. Order Booker Daily Booking Sheet (آرڈر بکر وائز ڈیلی سمری)
+                <i class="bi bi-person-badge me-1"></i> 2. Order Booker Daily Booking Sheet
             </a>
         </li>
     </ul>
@@ -326,7 +326,7 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
         <div class="card border-0 shadow-sm rounded-3 mb-3 d-print-none">
             <div class="card-header bg-white py-2 border-0 d-flex justify-content-between align-items-center">
                 <h6 class="fw-bold mb-0 text-dark">
-                    <i class="bi bi-people-fill text-primary me-1"></i> Today's Field Order Bookers Activity (آج کی فیلڈ بکنگ سمری)
+                    <i class="bi bi-people-fill text-primary me-1"></i> Today's Field Order Bookers Activity
                 </h6>
                 <span class="small text-muted"><?= count($bookerDailyStats) ?> sales reps active</span>
             </div>
@@ -436,11 +436,11 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
                 <div class="col-7">
                     <h5 class="fw-bold mb-0 text-dark text-uppercase"><?= htmlspecialchars($company['name'] ?? APP_NAME) ?></h5>
                     <div class="small text-muted" style="font-size: 0.78rem;">
-                        <?= htmlspecialchars($company['address'] ?? 'Central Logistics Terminal') ?> Â· Phone: <?= htmlspecialchars($company['phone'] ?? '+92 300 1234567') ?>
+                        <?= htmlspecialchars($company['address'] ?? 'Central Logistics Terminal') ?> &bull; Phone: <?= htmlspecialchars($company['phone'] ?? '+92 300 1234567') ?>
                     </div>
                 </div>
                 <div class="col-5 text-end">
-                    <div class="badge bg-dark fs-6 px-2 py-1 text-uppercase"><?= $mode === "booker" ? "BOOKER BOOKING SUMMARY / لوڈ شیٹ برائے آرڈر بکر" : "VEHICLE LOAD SHEET / لوڈ شیٹ برائے ترسیل" ?></div>
+                    <div class="badge bg-dark fs-6 px-2 py-1 text-uppercase"><?= $mode === "booker" ? "ORDER BOOKER DAILY SUMMARY" : "VEHICLE LOAD SHEET" ?></div>
                     <div class="small fw-bold text-dark mt-1">Date: <?= date('d-M-Y (l)', strtotime($date)) ?></div>
                 </div>
             </div>
@@ -469,7 +469,7 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
             <div class="col-3">
                 <div class="excel-box bg-light text-end">
                     <span class="text-muted small d-block">Total Orders / Value:</span>
-                    <strong class="text-primary"><?= $totalOrders ?> Orders Â· Rs. <?= number_format($totalLoadValue, 2) ?></strong>
+                    <strong class="text-primary"><?= $totalOrders ?> Orders &bull; Rs. <?= number_format($totalLoadValue, 2) ?></strong>
                 </div>
             </div>
         </div>
@@ -478,7 +478,7 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
         <div class="mb-3">
             <div class="d-flex justify-content-between align-items-center mb-1">
                 <span class="fw-bold text-dark small text-uppercase">
-                    <i class="bi bi-box-seam me-1"></i> 1. Consolidated Vehicle Loading Matrix (گاڑی میں لوڈ ہونے والا کل سامان)
+                    <i class="bi bi-box-seam me-1"></i> 1. Consolidated Vehicle Loading Matrix
                 </span>
                 <span class="small text-muted d-print-none"><?= $totalDistinctSkus ?> distinct items to load</span>
             </div>
@@ -494,7 +494,7 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
                         <th class="text-end" style="width: 80px;">Booked Qty</th>
                         <th class="text-end" style="width: 90px;">Rate (TP)</th>
                         <th class="text-end" style="width: 100px;">Total Value</th>
-                        <th class="text-center" style="width: 75px;">Loaded âœ“</th>
+                        <th class="text-center" style="width: 75px;">Loaded [&check;]</th>
                         <th class="text-center" style="width: 75px;">Delivered</th>
                     </tr>
                 </thead>
@@ -525,10 +525,10 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
                                     Rs. <?= number_format((float)$it['total_value'], 2) ?>
                                 </td>
                                 <td class="text-center bg-light">
-                                    <span class="d-print-none text-muted small">[ Â  Â  ]</span>
+                                    <span class="d-print-none text-muted small">[ &nbsp; &nbsp; ]</span>
                                 </td>
                                 <td class="text-center bg-light">
-                                    <span class="d-print-none text-muted small">[ Â  Â  ]</span>
+                                    <span class="d-print-none text-muted small">[ &nbsp; &nbsp; ]</span>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -538,8 +538,8 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
                             <td class="text-end fs-6 text-primary"><?= number_format($totalUnitsQty, 2) ?></td>
                             <td class="text-end">-</td>
                             <td class="text-end fs-6 text-dark">Rs. <?= number_format($totalLoadValue, 2) ?></td>
-                            <td class="text-center">âœ“ Tally</td>
-                            <td class="text-center">âœ“ Tally</td>
+                            <td class="text-center">&check; Tally</td>
+                            <td class="text-center">&check; Tally</td>
                         </tr>
                     <?php endif; ?>
                 </tbody>
@@ -550,7 +550,7 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
         <div class="mt-3">
             <div class="d-flex justify-content-between align-items-center mb-1">
                 <span class="fw-bold text-dark small text-uppercase">
-                    <i class="bi bi-shop me-1"></i> 2. Shop-by-Shop Delivery Drop List (دکان وار ڈیلیوری اور بلز)
+                    <i class="bi bi-shop me-1"></i> 2. Shop-by-Shop Delivery Drop List
                 </span>
                 <span class="small text-muted d-print-none"><?= $totalOrders ?> shop orders</span>
             </div>

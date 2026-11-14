@@ -154,7 +154,7 @@ $autoprint = isset($_GET['print']) && $_GET['print'] == '1';
                 • Phone: <?= htmlspecialchars($company['phone'] ?? '+92 300 1111111') ?>
             </p>
             <div class="badge bg-primary px-3 py-2 fs-6 rounded-pill">
-                <i class="bi bi-shield-check me-1"></i> آفیشل بینک و ڈیجیٹل والٹ اکاؤنٹس برائے ادائیگی (Official Payment Accounts)
+                <i class="bi bi-shield-check me-1"></i> Official Verified Payment Accounts
             </div>
         </div>
     </header>
@@ -164,7 +164,7 @@ $autoprint = isset($_GET['print']) && $_GET['print'] == '1';
         <div class="alert alert-primary bg-white border-primary shadow-sm rounded-3 mb-4 d-flex align-items-center gap-3">
             <div class="fs-1 text-primary"><i class="bi bi-info-circle-fill"></i></div>
             <div>
-                <div class="fw-bold text-dark">آن لائن رقم منتقل کرنے کے بعد اسکرین شاٹ لازمی شیئر فرمائیں</div>
+                <div class="fw-bold text-dark">Please Share Deposit Receipt / Screenshot After Online Transfer</div>
                 <small class="text-muted">
                     Please transfer your order invoice payments to any of our official verified bank accounts or mobile wallets below. After payment, send the transaction ID / deposit receipt screenshot to our WhatsApp <strong><?= htmlspecialchars($company['phone'] ?? '+92 300 1111111') ?></strong> for instant ledger clearance.
                 </small>
@@ -175,7 +175,7 @@ $autoprint = isset($_GET['print']) && $_GET['print'] == '1';
         <?php if (!empty($bankAccounts)): ?>
             <div class="mb-4">
                 <div class="d-flex align-items-center gap-2 mb-3">
-                    <h5 class="fw-bold text-dark mb-0"><i class="bi bi-bank text-primary me-2"></i>1. Commercial Bank Accounts (بینک اکاؤنٹس)</h5>
+                    <h5 class="fw-bold text-dark mb-0"><i class="bi bi-bank text-primary me-2"></i>1. Commercial Bank Accounts</h5>
                     <span class="badge bg-secondary-subtle text-dark border small"><?= count($bankAccounts) ?> Channels</span>
                 </div>
 
@@ -196,12 +196,12 @@ $autoprint = isset($_GET['print']) && $_GET['print'] == '1';
                                 </div>
 
                                 <div class="mb-2">
-                                    <span class="text-muted small d-block">Account Title (اکاؤنٹ ٹائٹل):</span>
+                                    <span class="text-muted small d-block">Account Title:</span>
                                     <strong class="fs-6 text-dark"><?= htmlspecialchars($acc['account_title']) ?></strong>
                                 </div>
 
                                 <div class="mb-2">
-                                    <span class="text-muted small d-block">Account Number (اکاؤنٹ نمبر):</span>
+                                    <span class="text-muted small d-block">Account Number:</span>
                                     <div class="acct-number-box">
                                         <span class="acct-digits" id="num_<?= $acc['id'] ?>"><?= htmlspecialchars($acc['account_number']) ?></span>
                                         <button type="button" class="btn btn-outline-primary btn-copy-tag" onclick="copyValue('<?= htmlspecialchars($acc['account_number']) ?>', this)">
@@ -212,7 +212,7 @@ $autoprint = isset($_GET['print']) && $_GET['print'] == '1';
 
                                 <?php if (!empty($acc['iban'])): ?>
                                     <div class="mb-2">
-                                        <span class="text-muted small d-block">IBAN Number (آئی بین):</span>
+                                        <span class="text-muted small d-block">IBAN Number:</span>
                                         <div class="acct-number-box">
                                             <span class="font-monospace small fw-bold text-dark text-break"><?= htmlspecialchars($acc['iban']) ?></span>
                                             <button type="button" class="btn btn-outline-secondary btn-copy-tag" onclick="copyValue('<?= htmlspecialchars($acc['iban']) ?>', this)">
@@ -245,7 +245,7 @@ $autoprint = isset($_GET['print']) && $_GET['print'] == '1';
         <?php if (!empty($walletAccounts)): ?>
             <div class="mb-4">
                 <div class="d-flex align-items-center gap-2 mb-3">
-                    <h5 class="fw-bold text-dark mb-0"><i class="bi bi-phone text-warning me-2"></i>2. Instant Mobile Wallets (جاز کیش / ایزی پیسہ / سادہ پے)</h5>
+                    <h5 class="fw-bold text-dark mb-0"><i class="bi bi-phone text-warning me-2"></i>2. Instant Mobile Wallets (JazzCash / EasyPaisa / SadaPay)</h5>
                     <span class="badge bg-secondary-subtle text-dark border small"><?= count($walletAccounts) ?> Wallets</span>
                 </div>
 
@@ -305,7 +305,7 @@ $autoprint = isset($_GET['print']) && $_GET['print'] == '1';
             </p>
             <div class="d-flex justify-content-center gap-2 no-print">
                 <button type="button" class="btn btn-success btn-sm px-4 fw-bold" onclick="shareOnWhatsApp();">
-                    <i class="bi bi-whatsapp me-1"></i> Share All Details via WhatsApp (واٹس ایپ پر بھیجیں)
+                    <i class="bi bi-whatsapp me-1"></i> Share Details via WhatsApp
                 </button>
                 <button type="button" class="btn btn-outline-dark btn-sm px-3" onclick="copyAllText();">
                     <i class="bi bi-clipboard me-1"></i> Copy Text Format
@@ -346,7 +346,7 @@ $autoprint = isset($_GET['print']) && $_GET['print'] == '1';
         let text = `*OFFICIAL COMPANY BANK & PAYMENT ACCOUNTS*\n` +
                    `*<?= addslashes(htmlspecialchars($company['name'] ?? APP_NAME)) ?>*\n` +
                    `Phone: <?= addslashes(htmlspecialchars($company['phone'] ?? '+92 300 1111111')) ?>\n\n` +
-                   `براہ کرم انوائس یا آرڈر کی رقم نیچے دیے گئے آفیشل اکاؤنٹس میں منتقل فرمائیں:\n\n`;
+                   `Please transfer order invoice payments to our official accounts below:\n\n`;
 
         <?php foreach ($accounts as $acc): ?>
             text += `🔹 *<?= addslashes(htmlspecialchars($acc['bank_name'])) ?>*\n` +
@@ -364,7 +364,7 @@ $autoprint = isset($_GET['print']) && $_GET['print'] == '1';
                     `\n`;
         <?php endforeach; ?>
 
-        text += `رقم بھیجنے کے بعد ڈپازٹ رسید یا اسکرین شاٹ اس نمبر پر لازمی شیئر فرمائیں۔ شکریہ!`;
+        text += `After sending payment, please share the deposit receipt or screenshot with us on this number. Thank you!`;
         return text;
     }
 

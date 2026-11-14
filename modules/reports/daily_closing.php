@@ -282,7 +282,7 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
                 <a href="<?= BASE_URL ?>/modules/reports/index.php" class="btn btn-sm btn-outline-secondary">
                     <i class="bi bi-arrow-left me-1"></i> Reports Hub
                 </a>
-                <h4 class="fw-bold mb-0 text-dark"><i class="bi bi-safe2 text-success me-2"></i>Daily Day Closing (ڈیلی ڈے کلوزنگ)</h4>
+                <h4 class="fw-bold mb-0 text-dark"><i class="bi bi-safe2 text-success me-2"></i>Daily Day Closing</h4>
             </div>
             <small class="text-muted">Daily starting cash, gross profit calculation, expense reconciliation & physical cash-in-hand lock</small>
         </div>
@@ -343,7 +343,7 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
                 <div class="col-7">
                     <h5 class="fw-bold mb-0 text-dark text-uppercase"><?= htmlspecialchars($company['name'] ?? APP_NAME) ?></h5>
                     <div class="small text-muted" style="font-size: 0.78rem;">
-                        <?= htmlspecialchars($company['address'] ?? 'Plot 45, Small Industrial Estate') ?> Â· Phone: <?= htmlspecialchars($company['phone'] ?? '+92 300 1234567') ?>
+                        <?= htmlspecialchars($company['address'] ?? 'Plot 45, Small Industrial Estate') ?> &bull; Phone: <?= htmlspecialchars($company['phone'] ?? '+92 300 1234567') ?>
                     </div>
                 </div>
                 <div class="col-5 text-end">
@@ -386,9 +386,9 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
                     </div>
                     <small class="fw-bold" style="font-size: 0.72rem;">
                         <?php if ($cashDifference == 0): ?>
-                            <span class="text-success">âœ“ Cash Exactly Matched</span>
+                            <span class="text-success">&check; Cash Exactly Matched</span>
                         <?php elseif ($cashDifference < 0): ?>
-                            <span class="text-danger">âš  Short by Rs. <?= number_format(abs($cashDifference), 2) ?></span>
+                            <span class="text-danger">&bull; Short by Rs. <?= number_format(abs($cashDifference), 2) ?></span>
                         <?php else: ?>
                             <span class="text-info">+ Excess by Rs. <?= number_format($cashDifference, 2) ?></span>
                         <?php endif; ?>
@@ -403,7 +403,7 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
                 <div class="card border rounded-3 h-100">
                     <div class="card-header bg-light py-2">
                         <span class="fw-bold text-dark text-uppercase small">
-                            <i class="bi bi-receipt me-1"></i> 1. Sales & Profitability Analysis (کتنے میں بیچی، کاسٹ، پرافٹ)
+                            <i class="bi bi-receipt me-1"></i> 1. Sales & Profitability Analysis
                         </span>
                     </div>
                     <div class="card-body p-0">
@@ -440,38 +440,38 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
                 <div class="card border rounded-3 h-100">
                     <div class="card-header bg-light py-2">
                         <span class="fw-bold text-dark text-uppercase small">
-                            <i class="bi bi-calculator me-1"></i> 2. Daily Cash in Hand Ledger (کیش ان ہینڈ کی کلوزنگ)
+                            <i class="bi bi-calculator me-1"></i> 2. Daily Cash in Hand Ledger
                         </span>
                     </div>
                     <div class="card-body p-0">
                         <table class="table table-closing-dense mb-0">
                             <tbody>
                                 <tr>
-                                    <td><i class="bi bi-arrow-right-circle text-primary me-1"></i> <strong>Starting / Opening Cash</strong> (صبح کا ابتدائی کیش)</td>
+                                    <td><i class="bi bi-arrow-right-circle text-primary me-1"></i> <strong>Starting / Opening Cash</strong></td>
                                     <td class="text-end fw-bold text-primary">Rs. <?= number_format($defaultOpeningCash, 2) ?></td>
                                 </tr>
                                 <tr>
-                                    <td><i class="bi bi-plus-circle text-success me-1"></i> Add: Cash Collections Received (وصولیاں)</td>
+                                    <td><i class="bi bi-plus-circle text-success me-1"></i> Add: Cash Collections Received</td>
                                     <td class="text-end text-success fw-bold">+ Rs. <?= number_format($cashCollected, 2) ?></td>
                                 </tr>
                                 <tr>
-                                    <td><i class="bi bi-dash-circle text-danger me-1"></i> Less: Operating Expenses Paid (روزمرہ اخراجات)</td>
+                                    <td><i class="bi bi-dash-circle text-danger me-1"></i> Less: Operating Expenses Paid</td>
                                     <td class="text-end text-danger fw-semibold">- Rs. <?= number_format($expensesPaid, 2) ?></td>
                                 </tr>
                                 <tr>
-                                    <td><i class="bi bi-dash-circle text-danger me-1"></i> Less: Supplier Cash Disbursed (سپلائر ادائیگیاں)</td>
+                                    <td><i class="bi bi-dash-circle text-danger me-1"></i> Less: Supplier Cash Disbursed</td>
                                     <td class="text-end text-danger fw-semibold">- Rs. <?= number_format($supplierPayments, 2) ?></td>
                                 </tr>
                                 <tr class="highlight-row table-light">
-                                    <td><strong>Expected System Cash in Hand</strong> (متوقع کیش بیلنس)</td>
+                                    <td><strong>Expected System Cash in Hand</strong></td>
                                     <td class="text-end fw-bold fs-6 text-dark">Rs. <?= number_format($expectedCash, 2) ?></td>
                                 </tr>
                                 <tr>
-                                    <td><strong>Actual Physical Cash Count</strong> (گن کر رکھا گیا کیش)</td>
+                                    <td><strong>Actual Physical Cash Count</strong></td>
                                     <td class="text-end fw-bold fs-6 text-primary">Rs. <?= number_format($actualCash, 2) ?></td>
                                 </tr>
                                 <tr class="<?= $cashDifference == 0 ? 'table-success' : ($cashDifference < 0 ? 'table-danger' : 'table-info') ?>">
-                                    <td><strong>Reconciliation Difference</strong> (کیش کا فرق)</td>
+                                    <td><strong>Reconciliation Difference</strong></td>
                                     <td class="text-end fw-bold fs-6">
                                         <?php if ($cashDifference == 0): ?>
                                             <span class="text-success">Rs. 0.00 (Balanced)</span>
@@ -494,7 +494,7 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
             <div class="card border rounded-3 mt-3">
                 <div class="card-header bg-light py-2">
                     <span class="fw-bold text-dark text-uppercase small">
-                        <i class="bi bi-wallet me-1"></i> 3. Itemized Cash Expenses Paid Today (آج ادا شدہ کیش اخراجات)
+                        <i class="bi bi-wallet me-1"></i> 3. Itemized Cash Expenses Paid Today
                     </span>
                 </div>
                 <div class="card-body p-0">
@@ -683,7 +683,7 @@ function recalcCashClosing() {
     const badge = document.getElementById('live_diff_badge');
     if (diff === 0) {
         badge.className = 'form-control form-control-sm fw-bold bg-success-subtle text-success';
-        badge.innerText = 'Rs. 0.00 (Balanced âœ“)';
+        badge.innerText = 'Rs. 0.00 (Balanced)';
     } else if (diff < 0) {
         badge.className = 'form-control form-control-sm fw-bold bg-danger-subtle text-danger';
         badge.innerText = '- Rs. ' + Math.abs(diff).toFixed(2) + ' (Short)';

@@ -174,12 +174,12 @@ try {
             <h6 class="sidebar-heading">Analytics & Config</h6>
             <li class="nav-item">
                 <a class="nav-link" href="<?= BASE_URL ?>/modules/reports/daily_closing.php">
-                    <i class="bi bi-safe2"></i> Daily Day Closing (ڈیلی کلوزنگ)
+                    <i class="bi bi-safe2"></i> Daily Day Closing
                 </a>
             </li>
             <li class="nav-item">
                 <a class="nav-link" href="<?= BASE_URL ?>/modules/reports/loadsheet.php">
-                    <i class="bi bi-truck-flatbed"></i> Dispatch Load Sheet (لوڈ شیٹ)
+                    <i class="bi bi-truck-flatbed"></i> Dispatch Load Sheet
                 </a>
             </li>
             <li class="nav-item">
@@ -189,7 +189,7 @@ try {
             </li>
             <li class="nav-item">
                 <a class="nav-link" href="<?= BASE_URL ?>/modules/areas/index.php">
-                    <i class="bi bi-geo-alt"></i> Routes & Territories (روٹس و ایریاز)
+                    <i class="bi bi-geo-alt"></i> Routes & Territories
                 </a>
             </li>
             <li class="nav-item">
