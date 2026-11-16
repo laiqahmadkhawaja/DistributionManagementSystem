@@ -254,14 +254,14 @@ function addPoRow(defaultId = null) {
             <input type="hidden" name="unit_id[]" class="po-unit-id" value="1">
         </td>
         <td>
-            <input type="number" class="form-control form-control-sm po-qty text-center" name="quantity[]" value="100" min="1" step="1" required>
+            <input type="number" class="form-control form-control-sm po-qty text-center" name="quantity[]" value="1" min="1" step="1" required>
         </td>
         <td>
             <input type="number" class="form-control form-control-sm po-cost text-end" name="unit_cost[]" value="0.00" step="0.01" required>
         </td>
         <td class="text-end fw-bold po-line-tot">Rs. 0.00</td>
         <td class="text-center">
-            <button type="button" class="btn btn-sm btn-outline-danger p-1 po-del-btn"><i class="bi bi-trash"></i></button>
+            <button type="button" class="btn btn-sm btn-outline-danger p-1 po-del-btn" title="Remove"><i class="bi bi-trash"></i></button>
         </td>
     `;
 
@@ -277,13 +277,26 @@ function addPoRow(defaultId = null) {
         if (this.value) {
             cost.value = parseFloat(opt.getAttribute('data-cost') || 0).toFixed(2);
             tr.querySelector('.po-unit-id').value = opt.getAttribute('data-unit') || 1;
+        } else {
+            cost.value = '0.00';
+            tr.querySelector('.po-unit-id').value = '1';
         }
         recalc();
     });
 
     qty.addEventListener('input', recalc);
     cost.addEventListener('input', recalc);
-    del.addEventListener('click', function() { tr.remove(); recalc(); });
+    del.addEventListener('click', function() {
+        if (document.querySelectorAll('.po-row').length > 1) {
+            tr.remove();
+            recalc();
+        } else {
+            sel.value = '';
+            qty.value = '1';
+            cost.value = '0.00';
+            recalc();
+        }
+    });
 
     if (defaultId) sel.dispatchEvent(new Event('change'));
 }
@@ -302,8 +315,7 @@ function recalc() {
 
 document.getElementById('btn-add-po-row').addEventListener('click', () => addPoRow());
 document.addEventListener('DOMContentLoaded', function() {
-    addPoRow(1);
-    addPoRow(2);
+    addPoRow();
 });
 </script>
 

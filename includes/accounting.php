@@ -99,7 +99,7 @@ function postJournalEntry(PDO $pdo, string $date, string $refType, ?int $refId, 
 function updateCustomerBalance(PDO $pdo, int $customerId, float $deltaAmount): void {
     $stmt = $pdo->prepare("
         UPDATE `customers` 
-        SET `current_balance` = `current_balance` + ?, `updated_at` = NOW() 
+        SET `current_balance` = COALESCE(`current_balance`, 0.00) + ?, `updated_at` = NOW() 
         WHERE id = ?
     ");
     $stmt->execute([$deltaAmount, $customerId]);
@@ -111,7 +111,7 @@ function updateCustomerBalance(PDO $pdo, int $customerId, float $deltaAmount): v
 function updateSupplierBalance(PDO $pdo, int $supplierId, float $deltaAmount): void {
     $stmt = $pdo->prepare("
         UPDATE `suppliers` 
-        SET `current_balance` = `current_balance` + ? 
+        SET `current_balance` = COALESCE(`current_balance`, 0.00) + ? 
         WHERE id = ?
     ");
     $stmt->execute([$deltaAmount, $supplierId]);

@@ -563,6 +563,11 @@ document.addEventListener('DOMContentLoaded', function () {
             if (this.value) {
                 populateUnits(this.value);
                 updateRowPriceFromTier(row);
+            } else {
+                unitSel.innerHTML = '<option value="">-- Select Product --</option>';
+                price.value = '0.00';
+                const helperBadge = row.querySelector('.rate-tier-badge');
+                if (helperBadge) helperBadge.innerHTML = '';
             }
             recalcRow(row);
         });
@@ -577,14 +582,29 @@ document.addEventListener('DOMContentLoaded', function () {
         disc.addEventListener('input', () => recalcRow(row));
 
         delBtn.addEventListener('click', function () {
-            row.remove();
-            recalcAll();
+            if (document.querySelectorAll('.item-row').length > 1) {
+                row.remove();
+                recalcAll();
+            } else {
+                sel.value = '';
+                unitSel.innerHTML = '<option value="">-- Select Product --</option>';
+                qty.value = '1';
+                price.value = '0.00';
+                disc.value = '0.00';
+                const helperBadge = row.querySelector('.rate-tier-badge');
+                if (helperBadge) helperBadge.innerHTML = '';
+                recalcRow(row);
+            }
         });
 
         if (defaultProdId) {
             sel.value = defaultProdId;
             populateUnits(defaultProdId);
             updateRowPriceFromTier(row);
+            recalcRow(row);
+        } else {
+            unitSel.innerHTML = '<option value="">-- Select Product --</option>';
+            price.value = '0.00';
             recalcRow(row);
         }
     }
@@ -613,9 +633,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
     btnAddItem.addEventListener('click', () => addItemRow());
 
-    // Initialize with 2 empty item rows
-    addItemRow(1);
-    addItemRow(2);
+    // Initialize with 1 empty item row
+    addItemRow();
 
     // Form Interceptor for Offline / Online Submission
     const orderForm = document.getElementById('order-booking-form');

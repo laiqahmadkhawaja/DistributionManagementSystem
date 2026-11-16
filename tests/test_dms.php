@@ -67,6 +67,10 @@ try {
 
     $product = $pdo->query("SELECT * FROM `products` WHERE id = 1")->fetch();
     $initStock = getCurrentStock($pdo, 1, $product['id']);
+    if ($initStock < 10) {
+        recordStockMovement($pdo, 1, $product['id'], 'stock_in', 'goods_receipt', 1, $product['base_unit_id'], 100.00, 0.00, (float)$product['purchase_price'], null, "Automated Test Replenishment");
+        $initStock = getCurrentStock($pdo, 1, $product['id']);
+    }
 
     $orderNumber = generateDocNumber($pdo, 'sales_orders', 'order_number', 'SO-TEST-');
     $orderQty = 5.00;
