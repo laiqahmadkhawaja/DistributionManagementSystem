@@ -95,10 +95,17 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
                                                 'received' => 'bg-success',
                                                 'partially_received' => 'bg-info text-dark',
                                                 'approved' => 'bg-warning text-dark',
+                                                'submitted' => 'bg-secondary',
                                                 default => 'bg-secondary'
                                             };
+                                            $statusLabel = match ($po['status']) {
+                                                'received' => 'Received (Stock In)',
+                                                'partially_received' => 'Partially Received',
+                                                'submitted' => 'Pending Receiving (GRN)',
+                                                default => ucwords(str_replace('_', ' ', $po['status']))
+                                            };
                                             ?>
-                                            <span class="badge badge-status <?= $b ?>"><?= htmlspecialchars(str_replace('_', ' ', $po['status'])) ?></span>
+                                            <span class="badge badge-status <?= $b ?>"><?= htmlspecialchars($statusLabel) ?></span>
                                         </td>
                                         <td data-label="Action" class="text-end">
                                             <?php if ($po['status'] !== 'received'): ?>
@@ -106,7 +113,7 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
                                                     <i class="bi bi-box-arrow-in-down me-1"></i> Receive Goods (GRN)
                                                 </a>
                                             <?php else: ?>
-                                                <span class="badge bg-light text-success border"><i class="bi bi-check-all me-1"></i>Fully Received</span>
+                                                <span class="badge bg-light text-success border"><i class="bi bi-check-all me-1"></i>Stock Inflow Complete</span>
                                             <?php endif; ?>
                                         </td>
                                     </tr>

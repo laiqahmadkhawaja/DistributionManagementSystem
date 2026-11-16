@@ -35,7 +35,7 @@ if (!$po) {
 
 // Fetch PO Items
 $itemsStmt = $pdo->prepare("
-    SELECT pi.*, p.name as product_name, p.code as product_code, p.is_batch_managed, u.name as unit_name
+    SELECT pi.*, p.name as product_name, p.code as product_code, p.is_batch_managed, p.base_unit_id, u.name as unit_name
     FROM `purchase_items` pi
     JOIN `products` p ON pi.product_id = p.id
     JOIN `units` u ON pi.unit_id = u.id
@@ -115,7 +115,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $batchId = (int)$pdo->lastInsertId();
                 }
 
-                // 1. Critical Inventory Rule: Stock Inflow in stock_ledger & WAC recalculation
+                // 1. Critical Inventory Rule: Convert packaging unit to base physical unit & record inflow
+                $baseUnitId = (int)($it['base_unit_id'] ?: $uId);
+                $physicalQtyIn = convertUnitQuantity($pdo, $pId, $uId, $baseUnitId, $recQty);
+                $baseUnitCost = ($physicalQtyIn > 0) ? round($lineTotal / $physicalQtyIn, 4) : $uCost;
+
                 recordStockMovement(
                     $pdo,
                     $po['warehouse_id'],
@@ -123,10 +127,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'purchase_grn',
                     'goods_receipt',
                     $grnId,
-                    $uId,
-                    $recQty, // Quantity In
+                    $baseUnitId,
+                    $physicalQtyIn, // Physical Base Quantity In
                     0.00,
-                    $uCost,
+                    $baseUnitCost,
                     $batchId,
                     "Received under GRN {$grnNumber} against PO {$po['po_number']}"
                 );

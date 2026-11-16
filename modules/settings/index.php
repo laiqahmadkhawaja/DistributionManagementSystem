@@ -115,6 +115,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_route_policy']))
     }
 }
 
+// Handle Procurement & Purchase Policy Update POST
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_purchase_policy'])) {
+    requirePermission('settings', 'edit');
+
+    $receivingMode = sanitize($_POST['purchase_receiving_mode'] ?? 'direct_receive');
+    $paymentMode = sanitize($_POST['purchase_default_payment_mode'] ?? 'credit');
+    $paymentAccount = (int)($_POST['purchase_default_payment_account'] ?? 2);
+
+    try {
+        $pdo->beginTransaction();
+        
+        $upsertSetting = $pdo->prepare("
+            INSERT INTO `settings` (`setting_key`, `setting_value`, `description`, `updated_at`)
+            VALUES (?, ?, ?, NOW())
+            ON DUPLICATE KEY UPDATE `setting_value` = VALUES(`setting_value`), `updated_at` = NOW()
+        ");
+
+        $upsertSetting->execute(['purchase_receiving_mode', $receivingMode, 'Procurement Stock Receiving Workflow Mode: direct_receive or two_step_grn']);
+        $upsertSetting->execute(['purchase_default_payment_mode', $paymentMode, 'Default Purchase Payment Mode: credit or full']);
+        $upsertSetting->execute(['purchase_default_payment_account', (string)$paymentAccount, 'Default Purchase Payment Account ID from Chart of Accounts']);
+
+        logAudit($pdo, 'settings', 1, 'update_purchase_policy', null, [
+            'purchase_receiving_mode' => $receivingMode,
+            'purchase_default_payment_mode' => $paymentMode,
+            'purchase_default_payment_account' => $paymentAccount
+        ]);
+        $pdo->commit();
+
+        setFlashMessage('success', 'Procurement & Purchasing policy saved successfully.');
+        redirect(BASE_URL . '/modules/settings/index.php?tab=purchases');
+
+    } catch (Exception $e) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        setFlashMessage('error', 'Error updating purchase policy: ' . $e->getMessage());
+        redirect(BASE_URL . '/modules/settings/index.php?tab=purchases');
+    }
+}
+
 // Handle RBAC Permission Matrix Update POST
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_permissions'])) {
     requirePermission('settings', 'edit');
@@ -169,6 +209,17 @@ $routeCadenceVal = getSetting($pdo, 'route_assignment_cadence', 'weekly');
 $routeCoverageVal = getSetting($pdo, 'route_coverage_tracking', '1');
 $routeFlexibleVal = getSetting($pdo, 'route_allow_flexible_days', '1');
 
+// Procurement & Purchasing Policy Settings
+$purchaseReceivingVal = getSetting($pdo, 'purchase_receiving_mode', 'direct_receive');
+$purchasePaymentVal = getSetting($pdo, 'purchase_default_payment_mode', 'credit');
+$purchaseAccountVal = (int)getSetting($pdo, 'purchase_default_payment_account', 2);
+$purchaseAccounts = $pdo->query("
+    SELECT id, code, name, system_tag 
+    FROM `chart_of_accounts` 
+    WHERE group_type = 'Asset' AND (system_tag IN ('cash', 'bank') OR parent_id = 1) AND is_active = 1 
+    ORDER BY code ASC
+")->fetchAll();
+
 $pageTitle = 'Settings & RBAC Security';
 require_once dirname(__DIR__, 2) . '/includes/header.php';
 ?>
@@ -202,6 +253,11 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
     <li class="nav-item">
         <button class="nav-link <?= $activeTab === 'routes' ? 'active' : '' ?> fw-semibold" id="routes-tab" data-bs-toggle="pill" data-bs-target="#routes-pane" type="button">
             <i class="bi bi-geo-alt-fill me-1"></i> Area & Route Policy
+        </button>
+    </li>
+    <li class="nav-item">
+        <button class="nav-link <?= $activeTab === 'purchases' ? 'active' : '' ?> fw-semibold" id="purchases-tab" data-bs-toggle="pill" data-bs-target="#purchases-pane" type="button">
+            <i class="bi bi-cart-check me-1"></i> Procurement Policy
         </button>
     </li>
     <li class="nav-item">
@@ -375,6 +431,117 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
                     <div class="mt-4">
                         <button type="submit" class="btn btn-primary px-4">
                             <i class="bi bi-check-lg me-1"></i> Save Route & Area Policy
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Procurement & Purchasing Policy Pane -->
+    <div class="tab-pane fade <?= $activeTab === 'purchases' ? 'show active' : '' ?>" id="purchases-pane">
+        <div class="card border-0 shadow-sm rounded-3" style="max-width: 860px;">
+            <div class="card-header bg-white py-3 border-0">
+                <h6 class="fw-bold mb-0 text-dark"><i class="bi bi-cart-check text-primary me-2"></i>Procurement & Stock Receiving Policy</h6>
+                <small class="text-muted">Configure direct purchase instant stock replenishment vs enterprise two-step goods receiving (GRN) workflow</small>
+            </div>
+            <div class="card-body p-4 pt-0">
+                <form method="POST" action="<?= BASE_URL ?>/modules/settings/index.php">
+                    <?= getCsrfField() ?>
+                    <input type="hidden" name="save_purchase_policy" value="1">
+
+                    <div class="mb-4">
+                        <label class="form-label small fw-bold text-dark d-flex align-items-center mb-2">
+                            <i class="bi bi-box-arrow-in-down text-success me-2"></i>Default Stock Receiving Mode
+                        </label>
+                        <div class="row g-3">
+                            <div class="col-12 col-md-6">
+                                <div class="card h-100 border p-3 rounded-3 <?= $purchaseReceivingVal === 'direct_receive' ? 'border-primary bg-primary bg-opacity-10' : 'bg-light' ?>">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="purchase_receiving_mode" id="mode_direct" value="direct_receive" <?= $purchaseReceivingVal === 'direct_receive' ? 'checked' : '' ?>>
+                                        <label class="form-check-label fw-bold text-dark" for="mode_direct">
+                                            Direct Purchase / Instant Stock Fill
+                                            <span class="badge bg-success ms-1 small">Small Business</span>
+                                        </label>
+                                    </div>
+                                    <small class="text-muted mt-2 d-block ps-4">
+                                        Stock is immediately loaded into warehouse inventory and a Goods Receipt Note (GRN) is automatically generated and posted. Skips the extra manual receiving step for fast business operations.
+                                    </small>
+                                </div>
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <div class="card h-100 border p-3 rounded-3 <?= $purchaseReceivingVal === 'two_step_grn' ? 'border-primary bg-primary bg-opacity-10' : 'bg-light' ?>">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="purchase_receiving_mode" id="mode_twostep" value="two_step_grn" <?= $purchaseReceivingVal === 'two_step_grn' ? 'checked' : '' ?>>
+                                        <label class="form-check-label fw-bold text-dark" for="mode_twostep">
+                                            Two-Step Procurement (PO &rarr; GRN)
+                                            <span class="badge bg-secondary ms-1 small">Enterprise</span>
+                                        </label>
+                                    </div>
+                                    <small class="text-muted mt-2 d-block ps-4">
+                                        Generates a Purchase Order in <em>submitted</em> status. Warehouse dock staff must physically inspect items and record a separate GRN before stock enters available inventory.
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                        <small class="text-muted mt-2 d-block">
+                            Note: Regardless of the default setting chosen here, order bookers and managers can still toggle between modes on-the-fly when creating individual purchase orders.
+                        </small>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label small fw-bold text-dark d-flex align-items-center mb-2">
+                            <i class="bi bi-cash-coin text-primary me-2"></i>Default Purchase Payment Preference
+                        </label>
+                        <div class="row g-3">
+                            <div class="col-12 col-md-6">
+                                <div class="card h-100 border p-3 rounded-3 <?= $purchasePaymentVal === 'credit' ? 'border-primary bg-primary bg-opacity-10' : 'bg-light' ?>">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="purchase_default_payment_mode" id="pay_credit" value="credit" <?= $purchasePaymentVal === 'credit' ? 'checked' : '' ?>>
+                                        <label class="form-check-label fw-bold text-dark" for="pay_credit">
+                                            Credit / On Account (Unpaid)
+                                        </label>
+                                    </div>
+                                    <small class="text-muted mt-2 d-block ps-4">
+                                        Purchases are booked as Accounts Payable liabilities in the supplier's financial ledger. Payments are settled separately later.
+                                    </small>
+                                </div>
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <div class="card h-100 border p-3 rounded-3 <?= $purchasePaymentVal === 'full' ? 'border-primary bg-primary bg-opacity-10' : 'bg-light' ?>">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="purchase_default_payment_mode" id="pay_full" value="full" <?= $purchasePaymentVal === 'full' ? 'checked' : '' ?>>
+                                        <label class="form-check-label fw-bold text-dark" for="pay_full">
+                                            Full Immediate Payment
+                                        </label>
+                                    </div>
+                                    <small class="text-muted mt-2 d-block ps-4">
+                                        Payment collection is pre-selected on the purchase screen, automatically issuing an immediate cash/bank disbursement voucher.
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label small fw-bold text-dark d-flex align-items-center">
+                            <i class="bi bi-wallet2 text-info me-2"></i>Default Disbursing Payment Account
+                        </label>
+                        <select class="form-select" name="purchase_default_payment_account" style="max-width: 450px;">
+                            <?php foreach ($purchaseAccounts as $acc): ?>
+                                <option value="<?= $acc['id'] ?>" <?= $purchaseAccountVal === (int)$acc['id'] ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars($acc['code']) ?> - <?= htmlspecialchars($acc['name']) ?> (<?= htmlspecialchars($acc['system_tag'] ?: 'Account') ?>)
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                        <small class="text-muted mt-1 d-block">
+                            Default chart of accounts ledger used when disbursing supplier payments at purchase creation.
+                        </small>
+                    </div>
+
+                    <div class="mt-4">
+                        <button type="submit" class="btn btn-primary px-4">
+                            <i class="bi bi-check-lg me-1"></i> Save Procurement Policy
                         </button>
                     </div>
                 </form>

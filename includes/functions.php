@@ -76,9 +76,9 @@ function generateDocNumber(PDO $pdo, string $table, string $column, string $pref
     return $prefix . $datePart . $newSequence;
 }
 
-function getSetting(PDO $pdo, string $key, ?string $default = null): ?string {
+function getSetting(PDO $pdo, string $key, ?string $default = null, bool $refresh = false): ?string {
     static $settingsCache = [];
-    if (isset($settingsCache[$key])) {
+    if (!$refresh && isset($settingsCache[$key])) {
         return $settingsCache[$key];
     }
     $stmt = $pdo->prepare("SELECT setting_value FROM `settings` WHERE `setting_key` = ? LIMIT 1");
