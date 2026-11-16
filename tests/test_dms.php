@@ -230,6 +230,10 @@ try {
     // ----------------------------------------------------
     // CLEANUP: Clean up test artifacts so test suite leaves production database clean
     // ----------------------------------------------------
+    $pdo->exec("SET FOREIGN_KEY_CHECKS = 0");
+    if (!empty($payId)) {
+        $pdo->prepare("DELETE FROM `payments` WHERE id = ?")->execute([$payId]);
+    }
     if (!empty($daId)) {
         $pdo->prepare("DELETE FROM `delivery_items` WHERE delivery_assignment_id = ?")->execute([$daId]);
         $pdo->prepare("DELETE FROM `delivery_assignments` WHERE id = ?")->execute([$daId]);
@@ -244,9 +248,6 @@ try {
         $pdo->prepare("DELETE FROM `sales_order_items` WHERE sales_order_id = ?")->execute([$orderId]);
         $pdo->prepare("DELETE FROM `sales_orders` WHERE id = ?")->execute([$orderId]);
     }
-    if (!empty($payId)) {
-        $pdo->prepare("DELETE FROM `payments` WHERE id = ?")->execute([$payId]);
-    }
     if (!empty($expId)) {
         $pdo->prepare("DELETE FROM `expenses` WHERE id = ?")->execute([$expId]);
     }
@@ -254,6 +255,11 @@ try {
         $pdo->prepare("DELETE FROM `goods_receipt_items` WHERE goods_receipt_id = ?")->execute([$grnId]);
         $pdo->prepare("DELETE FROM `goods_receipts` WHERE id = ?")->execute([$grnId]);
     }
+    // Also clean up any test orders matching SO-TEST-% and orphaned reservations
+    $pdo->exec("DELETE FROM `stock_reservations` WHERE order_id NOT IN (SELECT id FROM `sales_orders`)");
+    $pdo->exec("DELETE FROM `sales_order_items` WHERE sales_order_id IN (SELECT id FROM `sales_orders` WHERE order_number LIKE 'SO-TEST-%')");
+    $pdo->exec("DELETE FROM `sales_orders` WHERE order_number LIKE 'SO-TEST-%'");
+    $pdo->exec("SET FOREIGN_KEY_CHECKS = 1");
 
     echo "\n----------------------------------------------------\n";
     echo "TEST SUMMARY: {$testsPassed} PASSED, {$testsFailed} FAILED.\n";
