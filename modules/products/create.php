@@ -109,8 +109,13 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
                 </div>
 
                 <div class="col-12 col-md-4">
-                    <label class="form-label small fw-semibold">Category <span class="text-danger">*</span></label>
-                    <select class="form-select" name="category_id" required>
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <label class="form-label small fw-semibold mb-0">Category <span class="text-danger">*</span></label>
+                        <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none fw-semibold" data-bs-toggle="modal" data-bs-target="#quickAddCategoryModal">
+                            <i class="bi bi-plus-circle me-1"></i>+ New Category
+                        </button>
+                    </div>
+                    <select class="form-select" name="category_id" id="categorySelect" required>
                         <option value="">-- Choose Category --</option>
                         <?php foreach ($categories as $cat): ?>
                             <option value="<?= $cat['id'] ?>"><?= htmlspecialchars($cat['name']) ?></option>
@@ -191,5 +196,120 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
         </form>
     </div>
 </div>
+
+<!-- ==============================================================
+     MODAL: Quick Add Category (AJAX)
+     ============================================================== -->
+<div class="modal fade" id="quickAddCategoryModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title fw-bold">
+                    <i class="bi bi-folder-plus me-1"></i> Quick Add Category
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div id="quickCatAlert" class="alert alert-danger d-none py-2 px-3 small"></div>
+
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">Category Name <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" id="quickCatName" placeholder="e.g. Dairy & Frozen Goods" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">Category Code</label>
+                    <input type="text" class="form-control font-monospace text-uppercase" id="quickCatCode" placeholder="e.g. DAIR (auto if blank)">
+                    <small class="text-muted" style="font-size: 0.72rem;">Leave blank to auto-generate from name</small>
+                </div>
+                <div class="mb-2">
+                    <label class="form-label small fw-semibold">Description</label>
+                    <textarea class="form-control" id="quickCatDesc" rows="2" placeholder="Optional category description..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer bg-light justify-content-between">
+                <a href="<?= BASE_URL ?>/modules/products/categories.php" target="_blank" class="small text-muted text-decoration-none">
+                    <i class="bi bi-box-arrow-up-right me-1"></i> Full Categories Manager
+                </a>
+                <div>
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary btn-sm px-3 fw-semibold" id="quickCatSubmitBtn" onclick="submitQuickCategory()">
+                        <i class="bi bi-check-lg me-1"></i> Save & Select
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function submitQuickCategory() {
+    var nameInput = document.getElementById('quickCatName');
+    var codeInput = document.getElementById('quickCatCode');
+    var descInput = document.getElementById('quickCatDesc');
+    var alertBox = document.getElementById('quickCatAlert');
+    var btn = document.getElementById('quickCatSubmitBtn');
+
+    var name = nameInput.value.trim();
+    if (!name) {
+        alertBox.className = 'alert alert-danger py-2 px-3 small';
+        alertBox.innerText = 'Please enter a category name.';
+        return;
+    }
+
+    alertBox.className = 'alert alert-danger d-none py-2 px-3 small';
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Saving...';
+
+    var formData = new FormData();
+    formData.append('ajax_quick_add', '1');
+    formData.append('csrf_token', '<?= getCsrfToken() ?>');
+    formData.append('name', name);
+    formData.append('code', codeInput.value.trim());
+    formData.append('description', descInput.value.trim());
+
+    fetch('<?= BASE_URL ?>/modules/products/categories.php', {
+        method: 'POST',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: formData
+    })
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-check-lg me-1"></i> Save & Select';
+
+        if (data.success) {
+            var select = document.getElementById('categorySelect');
+            var opt = document.createElement('option');
+            opt.value = data.category.id;
+            opt.text = data.category.name;
+            opt.selected = true;
+            select.appendChild(opt);
+
+            // Close modal
+            var modalEl = document.getElementById('quickAddCategoryModal');
+            var modalInstance = bootstrap.Modal.getInstance(modalEl);
+            if (modalInstance) {
+                modalInstance.hide();
+            }
+
+            // Clear inputs
+            nameInput.value = '';
+            codeInput.value = '';
+            descInput.value = '';
+        } else {
+            alertBox.className = 'alert alert-danger py-2 px-3 small';
+            alertBox.innerText = data.error || 'Failed to create category.';
+        }
+    })
+    .catch(function(err) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-check-lg me-1"></i> Save & Select';
+        alertBox.className = 'alert alert-danger py-2 px-3 small';
+        alertBox.innerText = 'Network or server error while adding category.';
+    });
+}
+</script>
 
 <?php require_once dirname(__DIR__, 2) . '/includes/footer.php'; ?>

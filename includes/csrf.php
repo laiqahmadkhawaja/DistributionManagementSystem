@@ -45,3 +45,10 @@ function requireCsrfToken(): void {
         }
     }
 }
+
+/**
+ * Alias for requireCsrfToken()
+ */
+function validateCsrf(): void {
+    requireCsrfToken();
+}

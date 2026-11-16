@@ -8,13 +8,14 @@ if (!defined('DMS_INIT')) {
     define('DMS_INIT', true);
 }
 
+if (!function_exists('getDatabaseConnection')) {
 function getDatabaseConnection(): PDO {
     static $pdo = null;
 
     if ($pdo === null) {
         $host = '127.0.0.1';
         $port = 3306;
-        $db   = 'dms_db';
+        $db   = 'falcon_dms';
         $user = 'root';
         $pass = '';
 
@@ -35,4 +36,5 @@ function getDatabaseConnection(): PDO {
     }
 
     return $pdo;
+}
 }

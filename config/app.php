@@ -34,10 +34,42 @@ if (session_status() === PHP_SESSION_NONE) {
 // 2. Timezone & Locale
 date_default_timezone_set('Asia/Karachi');
 
-// 3. Error Reporting & Logging (Errors logged securely, never raw traces in browser)
+// 3. Server Superglobal Sanitization & Fallbacks (Ensures zero undefined notices on local and server deployments)
+if (empty($_SERVER['REQUEST_METHOD'])) {
+    $_SERVER['REQUEST_METHOD'] = 'GET';
+}
+if (empty($_SERVER['REMOTE_ADDR'])) {
+    $_SERVER['REMOTE_ADDR'] = '127.0.0.1';
+}
+if (empty($_SERVER['HTTP_USER_AGENT'])) {
+    $_SERVER['HTTP_USER_AGENT'] = 'DMS/Client';
+}
+
+// 3. Error Reporting & Logging
 error_reporting(E_ALL);
-ini_set('display_errors', '0');
+$isLocalhost = in_array($_SERVER['REMOTE_ADDR'] ?? '', ['127.0.0.1', '::1']) 
+    || str_contains($_SERVER['HTTP_HOST'] ?? '', 'localhost')
+    || (php_sapi_name() === 'cli');
+
+if ($isLocalhost) {
+    ini_set('display_errors', '1');
+} else {
+    ini_set('display_errors', '0');
+}
 ini_set('log_errors', '1');
+
+// Global Shutdown Handler for Fatal Errors
+register_shutdown_function(function() use ($isLocalhost) {
+    $error = error_get_last();
+    if ($error !== null && in_array($error['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR])) {
+        if ($isLocalhost) {
+            echo "<div style='background:#fee2e2; border:2px solid #ef4444; color:#991b1b; padding:16px; margin:20px; font-family:system-ui, sans-serif; border-radius:8px; z-index:99999; position:relative;'>";
+            echo "<h4 style='margin:0 0 8px 0;'><strong>DMS Application Error:</strong> " . htmlspecialchars($error['message']) . "</h4>";
+            echo "<p style='margin:0; font-size:0.9rem;'><strong>File:</strong> " . htmlspecialchars($error['file']) . " (Line <strong>" . $error['line'] . "</strong>)</p>";
+            echo "</div>";
+        }
+    }
+});
 
 // 4. Include Core System Components (Order of dependency)
 require_once __DIR__ . '/constants.php';

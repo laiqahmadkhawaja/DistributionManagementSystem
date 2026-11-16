@@ -248,19 +248,19 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
         </table>
     </div>
 
-    <!-- Itemized Bill Table (Excel Spreadsheet Style - 100% Fit) -->
-    <div class="table-responsive mb-2">
+    <!-- Itemized Bill Table (Excel Spreadsheet Style - 100% Fit & Zero Horizontal Scroll) -->
+    <div class="doc-table-container mb-2" style="overflow-x: hidden; width: 100%;">
         <table class="table table-excel align-middle mb-0" style="table-layout: fixed; width: 100%;">
             <thead>
                 <tr>
-                    <th style="width: 4%;" class="text-center">#</th>
-                    <th style="width: 12%;">SKU Code</th>
-                    <th style="width: 38%;">Product Description & Specifications</th>
-                    <th style="width: 10%;" class="text-center">Packaging</th>
-                    <th style="width: 8%;" class="text-center">Quantity</th>
-                    <th style="width: 12%;" class="text-end">Trade Price</th>
-                    <th style="width: 6%;" class="text-end">Disc.</th>
-                    <th style="width: 10%;" class="text-end">Line Net (Rs.)</th>
+                    <th style="width: 5%;" class="text-center">#</th>
+                    <th style="width: 13%;">SKU Code</th>
+                    <th style="width: 37%;">Product Description</th>
+                    <th style="width: 9%;" class="text-center">Unit</th>
+                    <th style="width: 8%;" class="text-center">Qty</th>
+                    <th style="width: 12%;" class="text-end">Price</th>
+                    <th style="width: 5%;" class="text-end">Disc</th>
+                    <th style="width: 11%;" class="text-end">Total (PKR)</th>
                 </tr>
             </thead>
             <tbody>
@@ -279,7 +279,7 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
                     <tr>
                         <td class="text-center text-muted py-1"><?= $sno++ ?></td>
                         <td class="py-1"><code><?= htmlspecialchars($item['product_code']) ?></code></td>
-                        <td class="py-1">
+                        <td class="py-1" style="word-break: break-word;">
                             <span class="fw-bold text-dark"><?= htmlspecialchars($item['product_name']) ?></span>
                             <?php if (!empty($item['barcode'])): ?>
                                 <small class="text-muted d-inline ms-1">(<?= htmlspecialchars($item['barcode']) ?>)</small>
@@ -295,7 +295,7 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
             </tbody>
             <tfoot>
                 <tr>
-                    <td colspan="4" class="fw-bold text-dark py-1">TOTAL INVOICE ITEMS (<?= count($items) ?> Distinct SKUs)</td>
+                    <td colspan="4" class="fw-bold text-dark py-1">TOTAL INVOICE ITEMS (<?= count($items) ?> SKUs)</td>
                     <td class="num-cell text-center fw-bold text-dark py-1"><?= number_format($totItemsQty, 0) ?></td>
                     <td colspan="2" class="text-end text-muted py-1">Gross Subtotal:</td>
                     <td class="num-cell text-end fw-bold text-dark py-1"><?= number_format((float)$order['subtotal'], 2) ?></td>

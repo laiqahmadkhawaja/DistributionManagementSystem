@@ -35,10 +35,14 @@ define('STATUS_VOIDED', 'voided');
 // System Roles
 define('ROLE_SUPER_ADMIN', 'super_admin');
 define('ROLE_ADMIN', 'admin');
+define('ROLE_SALES_MANAGER', 'sales_manager');
 define('ROLE_ORDER_BOOKER', 'order_booker');
 define('ROLE_SALESMAN', 'salesman');
+define('ROLE_DELIVERY_MANAGER', 'delivery_manager');
 define('ROLE_DELIVERY_MAN', 'delivery_man');
+define('ROLE_WAREHOUSE_MANAGER', 'warehouse_manager');
 define('ROLE_STOREKEEPER', 'storekeeper');
+define('ROLE_PURCHASE_MANAGER', 'purchase_manager');
 define('ROLE_ACCOUNTANT', 'accountant');
 
 // Base Paths and URLs

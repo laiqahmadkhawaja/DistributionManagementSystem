@@ -63,6 +63,7 @@ $roleSlug = $user['role_slug'] ?? '';
 <script src="<?= BASE_URL ?>/assets/vendor/html2canvas/html2canvas.min.js"></script>
 <script src="<?= BASE_URL ?>/assets/js/app.js"></script>
 <script src="<?= BASE_URL ?>/assets/js/offline-sync.js"></script>
+<script src="<?= BASE_URL ?>/assets/js/live-updates.js"></script>
 
 <script>
 // Register Service Worker for Offline / WebView Compatibility

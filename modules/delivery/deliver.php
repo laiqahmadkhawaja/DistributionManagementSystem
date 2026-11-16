@@ -41,7 +41,7 @@ if (!$delivery) {
 
 // Fetch delivery items
 $itemsStmt = $pdo->prepare("
-    SELECT di.*, p.name as product_name, p.code as product_code, u.name as unit_name
+    SELECT di.*, p.name as product_name, p.code as product_code, p.purchase_price, p.trade_price, u.name as unit_name
     FROM `delivery_items` di
     JOIN `products` p ON di.product_id = p.id
     JOIN `units` u ON di.unit_id = u.id
@@ -85,6 +85,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $soiUpdate = $pdo->prepare("UPDATE `sales_order_items` SET `delivered_qty` = ? WHERE id = ?");
 
+        $returnedItemsList = [];
+        $driverId = !empty($delivery['delivery_man_id']) ? (int)$delivery['delivery_man_id'] : (int)($currentEmp['id'] ?? 0);
+
         foreach ($items as $item) {
             $dId = $item['id'];
             $dispatched = (float)$item['dispatched_qty'];
@@ -102,23 +105,67 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $diUpdate->execute([$delQty, $retQty, $reason, $dId]);
             $soiUpdate->execute([$delQty, $item['sales_order_item_id']]);
 
-            // If any quantity returned in good condition, restock immediately
+            // Queue returned items for vehicle custody & warehouse stock handover
+            // Notice: Items are placed into driver custody (NOT added to active stock_ledger)
             if ($retQty > 0) {
-                recordStockMovement(
-                    $pdo,
-                    $delivery['warehouse_id'],
-                    $item['product_id'],
-                    'sale_return',
-                    'delivery_assignment',
-                    $assignmentId,
-                    $item['unit_id'],
-                    $retQty, // Inflow
-                    0.00,
-                    0.00,
-                    null,
-                    "Returned on delivery challan {$delivery['dispatch_number']}: {$reason}"
-                );
+                $unitPrice = (float)($item['trade_price'] ?? 0.00);
+                $unitCost = (float)($item['purchase_price'] ?? 0.00);
+                $returnedItemsList[] = [
+                    'product_id' => (int)$item['product_id'],
+                    'unit_id' => (int)$item['unit_id'],
+                    'quantity' => $retQty,
+                    'unit_price' => $unitPrice,
+                    'unit_cost' => $unitCost,
+                    'total_amount' => round($retQty * $unitPrice, 2),
+                    'condition_type' => !empty($reason) ? $reason : 'good'
+                ];
             }
+        }
+
+        // If any items were returned, record Sales Return into Driver's Vehicle Custody
+        if (!empty($returnedItemsList)) {
+            $srNumber = generateDocNumber($pdo, 'sales_returns', 'return_number', 'SR-');
+            $srTotal = 0.00;
+            foreach ($returnedItemsList as $ri) {
+                $srTotal += $ri['total_amount'];
+            }
+
+            $srStmt = $pdo->prepare("
+                INSERT INTO `sales_returns` (
+                    `return_number`, `customer_id`, `delivery_man_id`, `delivery_assignment_id`,
+                    `warehouse_id`, `return_date`, `total_amount`, `return_destination`,
+                    `status`, `handover_status`, `reason`, `created_by`, `created_at`
+                ) VALUES (?, ?, ?, ?, ?, CURDATE(), ?, 'quarantine', 'approved', 'in_vehicle_custody', ?, ?, NOW())
+            ");
+            $srStmt->execute([
+                $srNumber, $delivery['customer_id'], $driverId, $assignmentId,
+                $delivery['warehouse_id'], $srTotal, "Returned on delivery {$delivery['dispatch_number']}",
+                $currentUser['id']
+            ]);
+            $srId = (int)$pdo->lastInsertId();
+
+            $sriStmt = $pdo->prepare("
+                INSERT INTO `sales_return_items` (
+                    `sales_return_id`, `product_id`, `unit_id`, `quantity`,
+                    `unit_price`, `unit_cost`, `total_amount`, `condition_type`, `resell_status`
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'in_vehicle_custody')
+            ");
+            foreach ($returnedItemsList as $ri) {
+                $sriStmt->execute([
+                    $srId, $ri['product_id'], $ri['unit_id'], $ri['quantity'],
+                    $ri['unit_price'], $ri['unit_cost'], $ri['total_amount'], $ri['condition_type']
+                ]);
+            }
+
+            // Generate Credit Note for customer
+            $cnNumber = generateDocNumber($pdo, 'credit_notes', 'credit_note_number', 'CN-');
+            $pdo->prepare("
+                INSERT INTO `credit_notes` (`credit_note_number`, `sales_return_id`, `customer_id`, `amount`, `note_date`, `status`, `created_at`)
+                VALUES (?, ?, ?, ?, CURDATE(), 'active', NOW())
+            ")->execute([$cnNumber, $srId, $delivery['customer_id'], $srTotal]);
+
+            // Adjust customer ledger balance for the returned items
+            updateCustomerBalance($pdo, (int)$delivery['customer_id'], -$srTotal);
         }
 
         $newStatus = $allDeliveredFull ? 'delivered' : ($anyDelivered ? 'partially_delivered' : 'returned');

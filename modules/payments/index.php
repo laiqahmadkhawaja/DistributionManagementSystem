@@ -52,6 +52,9 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
         <small class="text-muted">Customer Receipts, Delivery Collections & Supplier Disbursements</small>
     </div>
     <div class="d-flex gap-2">
+        <a href="<?= BASE_URL ?>/modules/payments/recovery.php" class="btn btn-success btn-sm fw-bold">
+            <i class="bi bi-cash-coin me-1"></i> + Record Customer Recovery
+        </a>
         <a href="<?= BASE_URL ?>/modules/payments/handover.php" class="btn btn-outline-warning btn-sm">
             <i class="bi bi-wallet2 me-1"></i> Cash Handover & Recon
         </a>
@@ -86,12 +89,21 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
                             <th>Method</th>
                             <th class="text-end">Amount</th>
                             <th>Collector / Custody</th>
+                            <th class="text-end">Action</th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php foreach ($payments as $pay): ?>
                             <tr>
-                                <td data-label="Voucher #" class="fw-bold text-primary"><?= htmlspecialchars($pay['payment_number']) ?></td>
+                                <td data-label="Voucher #" class="fw-bold text-primary">
+                                    <?php if ($pay['payment_type'] === 'customer_receipt'): ?>
+                                        <a href="<?= BASE_URL ?>/modules/payments/receipt_print.php?id=<?= $pay['id'] ?>" target="_blank" class="text-decoration-none">
+                                            <?= htmlspecialchars($pay['payment_number']) ?>
+                                        </a>
+                                    <?php else: ?>
+                                        <?= htmlspecialchars($pay['payment_number']) ?>
+                                    <?php endif; ?>
+                                </td>
                                 <td data-label="Date"><?= formatDate($pay['payment_date']) ?></td>
                                 <td data-label="Party">
                                     <div class="fw-bold text-dark"><?= htmlspecialchars($pay['party_name'] ?? 'General') ?></div>
@@ -119,6 +131,15 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
                                         <span class="badge bg-warning text-dark" style="font-size: 0.65rem;">Pending Handover</span>
                                     <?php elseif ($pay['handover_status'] === 'reconciled'): ?>
                                         <span class="badge bg-success" style="font-size: 0.65rem;">Reconciled</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td data-label="Action" class="text-end">
+                                    <?php if ($pay['payment_type'] === 'customer_receipt'): ?>
+                                        <a href="<?= BASE_URL ?>/modules/payments/receipt_print.php?id=<?= $pay['id'] ?>" target="_blank" class="btn btn-sm btn-outline-primary" title="Print Receipt Voucher">
+                                            <i class="bi bi-printer"></i>
+                                        </a>
+                                    <?php else: ?>
+                                        <span class="text-muted">-</span>
                                     <?php endif; ?>
                                 </td>
                             </tr>

@@ -126,11 +126,173 @@ body {
     margin-right: 0.75rem;
 }
 
-.sidebar .nav-link:hover,
-.sidebar .nav-link.active {
+.sidebar .nav-link:hover {
     color: var(--dms-primary);
-    background-color: #eff6ff;
+    background-color: #f1f5f9;
+}
+
+.sidebar .nav-link.active {
+    color: #0d6efd !important;
+    background-color: #e0edff !important;
+    font-weight: 700 !important;
+    border-left: 3px solid #0d6efd !important;
+    border-radius: 4px 8px 8px 4px !important;
+    box-shadow: 0 1px 2px rgba(13, 110, 253, 0.05);
+}
+
+.sidebar .nav-link.active i {
+    color: #0d6efd !important;
+}
+
+/* Collapsible Sidebar Sections */
+.sidebar-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0.65rem 0.3rem;
+    margin-top: 0.5rem;
+    margin-bottom: 0.15rem;
+    border-radius: 6px;
+    cursor: pointer;
+    user-select: none;
+    text-decoration: none !important;
+    transition: background-color 0.15s ease-in-out;
+}
+
+.sidebar-section-header:hover {
+    background-color: #f1f5f9;
+}
+
+.sidebar-section-header .sidebar-heading {
+    padding: 0;
+    margin: 0;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    font-weight: 700;
+    letter-spacing: 0.6px;
+    color: #64748b;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.sidebar-section-header .section-chevron {
+    font-size: 0.7rem;
+    color: #94a3b8;
+    transition: transform 0.2s ease-in-out, color 0.15s ease-in-out;
+}
+
+.sidebar-section-header[aria-expanded="true"] .section-chevron {
+    transform: rotate(180deg);
+    color: var(--dms-primary);
+}
+
+.sidebar-section-header[aria-expanded="true"] .sidebar-heading {
+    color: #0f172a;
+}
+
+.sidebar-section-header.is-active-section .sidebar-heading {
+    color: #0d6efd;
+}
+
+.sidebar-section-header.is-active-section {
+    background-color: rgba(13, 110, 253, 0.04);
+}
+
+.sidebar .collapse .nav {
+    padding-left: 0.15rem;
+}
+
+/* Delivery Driver Quick Search & Filters */
+.delivery-search-box {
+    background-color: #ffffff;
+    border: 1.5px solid #cbd5e1;
+    border-radius: 10px;
+    transition: all 0.2s ease-in-out;
+}
+.delivery-search-box:focus-within {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.15);
+}
+.status-pill {
+    border-radius: 20px !important;
+    font-size: 0.8rem;
+    padding: 0.35rem 0.85rem;
+    transition: all 0.15s ease-in-out;
+}
+.delivery-stop-card {
+    transition: background-color 0.15s ease-in-out, border-color 0.15s ease-in-out;
+}
+.delivery-stop-card:hover {
+    background-color: #f8fafc;
+}
+
+/* Blinking & Pulsing Sidebar Notifications */
+@keyframes dms-section-blink {
+    0%, 100% {
+        color: #1e293b;
+        background-color: transparent;
+    }
+    50% {
+        color: #dc2626 !important;
+        background-color: rgba(220, 38, 38, 0.1);
+    }
+}
+
+@keyframes dms-badge-pulse {
+    0% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.7);
+    }
+    70% {
+        transform: scale(1.08);
+        box-shadow: 0 0 0 6px rgba(220, 38, 38, 0);
+    }
+    100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(220, 38, 38, 0);
+    }
+}
+
+.section-blink-alert {
+    animation: dms-section-blink 1.5s infinite ease-in-out !important;
+    border-radius: 6px;
+}
+
+.section-blink-alert .sidebar-heading {
+    color: #dc2626 !important;
+    font-weight: 800 !important;
+}
+
+.section-counter-badge {
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 0.2rem 0.45rem;
+    letter-spacing: 0;
+    vertical-align: middle;
+}
+
+.pulse-badge {
+    animation: dms-badge-pulse 1.8s infinite ease-in-out !important;
+}
+
+/* Floating Live Updated Indicator */
+.dms-live-indicator {
+    position: fixed;
+    top: 60px;
+    right: 20px;
+    z-index: 1060;
+    font-size: 0.75rem;
     font-weight: 600;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+    transform: translateY(-10px);
+}
+
+.dms-live-indicator.show {
+    opacity: 1;
+    transform: translateY(0);
 }
 
 .sidebar-heading {
@@ -336,17 +498,72 @@ body {
 }
 
 /* ==========================================================================
-   OFFICIAL COMMERCIAL SALES BILL & INVOICE (.bill-sheet)
+   OFFICIAL COMMERCIAL SALES BILL & INVOICE (.bill-sheet, .gatepass-sheet)
    ========================================================================== */
-.bill-sheet {
+.bill-sheet,
+.gatepass-sheet,
+.slip-card,
+.receipt-card,
+.doc-sheet {
     background: #ffffff;
     border: 1px solid #cbd5e1;
     border-radius: 8px;
-    padding: 1.5rem 1.75rem;
+    padding: 1.25rem 1.5rem;
     box-shadow: 0 4px 16px rgba(15, 23, 42, 0.08);
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     color: #0f172a;
     width: 100%;
+    max-width: 900px;
+    box-sizing: border-box;
+    overflow-x: hidden !important;
+}
+
+/* Eliminate ANY horizontal scrollbar inside printable document sheets */
+.bill-sheet .table-responsive,
+.gatepass-sheet .table-responsive,
+.slip-card .table-responsive,
+.receipt-card .table-responsive,
+.doc-sheet .table-responsive,
+.doc-table-container,
+.table-responsive-none {
+    overflow-x: hidden !important;
+    overflow: hidden !important;
+    width: 100% !important;
+    max-width: 100% !important;
+}
+
+/* Strict 100% layout fit for tables inside document sheets */
+.bill-sheet .table-excel,
+.gatepass-sheet .table-excel,
+.slip-card table,
+.receipt-card table,
+.doc-sheet table {
+    width: 100% !important;
+    max-width: 100% !important;
+    table-layout: fixed !important;
+    border-collapse: collapse !important;
+}
+
+.bill-sheet .table-excel th,
+.bill-sheet .table-excel td,
+.gatepass-sheet .table-excel th,
+.gatepass-sheet .table-excel td,
+.doc-sheet .table-excel th,
+.doc-sheet .table-excel td {
+    padding: 4px 6px !important;
+    font-size: 0.8rem !important;
+    line-height: 1.25 !important;
+    word-break: break-word !important;
+    overflow-wrap: break-word !important;
+}
+
+.bill-sheet .table-excel thead th,
+.gatepass-sheet .table-excel thead th,
+.doc-sheet .table-excel thead th {
+    white-space: normal !important; /* Allow clean word wrap, prevent overflow */
+    word-break: break-word !important;
+    text-align: left;
+    vertical-align: middle;
 }
 
 .bill-header-title {

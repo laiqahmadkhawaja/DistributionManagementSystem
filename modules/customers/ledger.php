@@ -8,7 +8,7 @@ require_once dirname(__DIR__, 2) . '/config/app.php';
 requireLogin();
 requirePermission('customers', 'view');
 
-$customerId = (int)($_GET['id'] ?? 0);
+$customerId = (int)($_GET['id'] ?? ($_GET['customer_id'] ?? 0));
 if (!$customerId) {
     setFlashMessage('error', 'Invalid customer specified.');
     redirect(BASE_URL . '/modules/customers/index.php');
@@ -115,6 +115,9 @@ $company = getCompanyInfo($pdo);
         <small class="text-muted"><?= htmlspecialchars($customer['shop_name']) ?> (<?= htmlspecialchars($customer['code']) ?>) · Area: <?= htmlspecialchars($customer['area_name']) ?></small>
     </div>
     <div class="d-flex flex-wrap gap-2">
+        <a href="<?= BASE_URL ?>/modules/payments/recovery.php?customer_id=<?= $customerId ?>" class="btn btn-sm btn-warning text-dark fw-bold">
+            <i class="bi bi-cash-coin me-1"></i> Recover Payment
+        </a>
         <button type="button" class="btn btn-sm btn-success" onclick="exportTableToCSV('ledgerTable', 'Ledger_<?= $customer['code'] ?>_<?= date('Ymd') ?>');">
             <i class="bi bi-file-earmark-excel me-1"></i> Export Excel (.csv)
         </button>

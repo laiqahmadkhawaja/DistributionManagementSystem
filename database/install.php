@@ -9,7 +9,7 @@ ini_set('display_errors', '1');
 
 $host = '127.0.0.1';
 $port = 3306;
-$db   = 'dms_db';
+$db   = 'falcon_dms';
 $user = 'root';
 $pass = '';
 

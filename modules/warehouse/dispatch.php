@@ -48,8 +48,13 @@ $itemsStmt->execute([$orderId]);
 $items = $itemsStmt->fetchAll();
 
 // Fetch warehouses & delivery drivers
+$currentEmp = getCurrentEmployee();
 $warehouses = $pdo->query("SELECT id, name FROM `warehouses` WHERE status = 'active' ORDER BY is_default DESC")->fetchAll();
-$deliveryStaff = $pdo->query("SELECT id, full_name, phone FROM `employees` WHERE role_type IN ('delivery_man', 'salesman') AND status = 'active' ORDER BY full_name ASC")->fetchAll();
+$deliveryStaff = $pdo->query("SELECT id, full_name, phone, role_type FROM `employees` WHERE role_type IN ('delivery_man', 'salesman') AND status = 'active' ORDER BY full_name ASC")->fetchAll();
+
+$defaultDriverId = !empty($_GET['delivery_man_id']) 
+    ? (int)$_GET['delivery_man_id'] 
+    : ((!empty($currentEmp['id']) && in_array($currentEmp['role_type'] ?? '', ['delivery_man', 'salesman'])) ? (int)$currentEmp['id'] : ($deliveryStaff[0]['id'] ?? 0));
 
 // Handle Dispatch POST submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -225,7 +230,9 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
                         <select class="form-select" id="delivery_man_id" name="delivery_man_id" required>
                             <option value="">-- Assign Driver --</option>
                             <?php foreach ($deliveryStaff as $ds): ?>
-                                <option value="<?= $ds['id'] ?>"><?= htmlspecialchars($ds['full_name']) ?> (<?= htmlspecialchars($ds['phone']) ?>)</option>
+                                <option value="<?= $ds['id'] ?>" <?= $ds['id'] == $defaultDriverId ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars($ds['full_name']) ?> (<?= htmlspecialchars($ds['phone']) ?>)
+                                </option>
                             <?php endforeach; ?>
                         </select>
                     </div>

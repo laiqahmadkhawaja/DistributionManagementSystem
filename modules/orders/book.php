@@ -49,6 +49,20 @@ $allConversions = $pdo->query("
     JOIN `units` u2 ON uc.to_unit_id = u2.id
 ")->fetchAll();
 
+// Fetch active order bookers and sales agents
+$isSuperAdmin = ($roleSlug === ROLE_SUPER_ADMIN);
+
+$bookers = $pdo->query("
+    SELECT id, employee_code, full_name, role_type 
+    FROM `employees` 
+    WHERE status = 'active' AND role_type IN ('order_booker', 'salesman', 'admin', 'super_admin')
+    ORDER BY full_name ASC
+")->fetchAll();
+
+$defaultBookerId = $isSuperAdmin 
+    ? (!empty($_GET['booker_id']) ? (int)$_GET['booker_id'] : (!empty($currentEmp['id']) ? (int)$currentEmp['id'] : ($bookers[0]['id'] ?? 1)))
+    : (int)($currentEmp['id'] ?? 0);
+
 // Handle Server-Side POST submission when online
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $customerId = (int)($_POST['customer_id'] ?? 0);
@@ -85,7 +99,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         redirect(BASE_URL . '/modules/orders/book.php');
     }
 
-    $bookerId = $currentEmp['id'] ?? ($customer['assigned_order_booker_id'] ?: 1);
+    // Security Rule: Only Super Administrator can book under another employee's name
+    if ($isSuperAdmin) {
+        $bookerId = !empty($_POST['order_booker_id']) 
+            ? (int)$_POST['order_booker_id'] 
+            : (!empty($currentEmp['id']) ? (int)$currentEmp['id'] : ($customer['assigned_order_booker_id'] ?: 1));
+    } else {
+        if (empty($currentEmp['id'])) {
+            setFlashMessage('error', 'Access denied. You do not have an active employee profile linked to your user account.');
+            redirect(BASE_URL . '/modules/orders/book.php');
+        }
+        $bookerId = (int)$currentEmp['id'];
+    }
 
     try {
         $pdo->beginTransaction();
@@ -224,6 +249,27 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
                                 </option>
                             <?php endforeach; ?>
                         </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="order_booker_id" class="form-label small fw-semibold">Order Booker / Salesman <span class="text-danger">*</span></label>
+                        <?php if ($isSuperAdmin): ?>
+                            <select class="form-select form-select-sm fw-semibold" id="order_booker_id" name="order_booker_id" required>
+                                <?php foreach ($bookers as $b): ?>
+                                    <option value="<?= $b['id'] ?>" <?= $b['id'] == $defaultBookerId ? 'selected' : '' ?>>
+                                        <?= htmlspecialchars($b['full_name']) ?> (<?= htmlspecialchars($b['employee_code']) ?> - <?= ucwords(str_replace('_', ' ', $b['role_type'])) ?>)
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        <?php else: ?>
+                            <input type="hidden" name="order_booker_id" value="<?= (int)($currentEmp['id'] ?? 0) ?>">
+                            <select class="form-select form-select-sm fw-semibold bg-light" disabled>
+                                <option value="<?= (int)($currentEmp['id'] ?? 0) ?>" selected>
+                                    <?= htmlspecialchars($currentEmp['full_name'] ?? 'Myself') ?> (<?= htmlspecialchars($currentEmp['employee_code'] ?? '') ?> - <?= ucwords(str_replace('_', ' ', $currentEmp['role_type'] ?? 'Staff')) ?>)
+                                </option>
+                            </select>
+                            <small class="text-muted" style="font-size:0.7rem;"><i class="bi bi-shield-lock text-secondary me-1"></i>Locked to your employee profile (Super Admin can reassign)</small>
+                        <?php endif; ?>
                     </div>
 
                     <!-- Customer Financial Health Widget -->

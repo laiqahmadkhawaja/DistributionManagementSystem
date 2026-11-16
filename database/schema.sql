@@ -662,16 +662,20 @@ CREATE TABLE `sales_returns` (
     `return_number` VARCHAR(50) NOT NULL UNIQUE,
     `sales_invoice_id` INT UNSIGNED NULL,
     `customer_id` INT UNSIGNED NOT NULL,
+    `delivery_man_id` INT UNSIGNED NULL,
+    `delivery_assignment_id` INT UNSIGNED NULL,
     `warehouse_id` INT UNSIGNED NOT NULL,
     `return_date` DATE NOT NULL,
     `total_amount` DECIMAL(14,2) NOT NULL,
-    `return_destination` ENUM('good_stock', 'damaged_stock', 'expired_stock', 'quarantine') DEFAULT 'good_stock',
+    `return_destination` ENUM('good_stock', 'damaged_stock', 'expired_stock', 'quarantine') DEFAULT 'quarantine',
     `status` ENUM('draft', 'approved', 'rejected') DEFAULT 'approved',
+    `handover_status` ENUM('in_vehicle_custody', 'handed_over', 'received_in_warehouse') DEFAULT 'in_vehicle_custody',
     `reason` TEXT NULL,
     `created_by` INT UNSIGNED NULL,
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT `fk_sr_si` FOREIGN KEY (`sales_invoice_id`) REFERENCES `sales_invoices` (`id`) ON DELETE SET NULL,
     CONSTRAINT `fk_sr_cust` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`),
+    CONSTRAINT `fk_sr_dm` FOREIGN KEY (`delivery_man_id`) REFERENCES `employees` (`id`) ON DELETE SET NULL,
     CONSTRAINT `fk_sr_wh` FOREIGN KEY (`warehouse_id`) REFERENCES `warehouses` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -686,8 +690,52 @@ CREATE TABLE `sales_return_items` (
     `unit_cost` DECIMAL(12,2) NOT NULL DEFAULT 0.00,
     `total_amount` DECIMAL(14,2) NOT NULL,
     `condition_type` VARCHAR(50) DEFAULT 'good',
+    `resell_status` ENUM('in_vehicle_custody', 'quarantine_holding', 'restocked_active', 'written_off') DEFAULT 'in_vehicle_custody',
+    `restocked_qty` DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+    `restocked_at` DATETIME NULL,
+    `restocked_by` INT UNSIGNED NULL,
     CONSTRAINT `fk_sri_sr` FOREIGN KEY (`sales_return_id`) REFERENCES `sales_returns` (`id`) ON DELETE CASCADE,
     CONSTRAINT `fk_sri_prod` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+DROP TABLE IF EXISTS `stock_handovers`;
+CREATE TABLE `stock_handovers` (
+    `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `handover_number` VARCHAR(50) NOT NULL UNIQUE,
+    `delivery_man_id` INT UNSIGNED NOT NULL,
+    `warehouse_id` INT UNSIGNED NOT NULL DEFAULT 1,
+    `handover_date` DATE NOT NULL,
+    `total_skus` INT UNSIGNED NOT NULL DEFAULT 0,
+    `total_quantity` DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+    `total_value` DECIMAL(14,2) NOT NULL DEFAULT 0.00,
+    `status` ENUM('pending', 'verified', 'rejected') DEFAULT 'pending',
+    `received_by` INT UNSIGNED NULL,
+    `received_at` DATETIME NULL,
+    `notes` TEXT NULL,
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT `fk_sh_dm` FOREIGN KEY (`delivery_man_id`) REFERENCES `employees` (`id`),
+    CONSTRAINT `fk_sh_wh` FOREIGN KEY (`warehouse_id`) REFERENCES `warehouses` (`id`),
+    CONSTRAINT `fk_sh_recby` FOREIGN KEY (`received_by`) REFERENCES `users` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+DROP TABLE IF EXISTS `stock_handover_items`;
+CREATE TABLE `stock_handover_items` (
+    `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `stock_handover_id` INT UNSIGNED NOT NULL,
+    `sales_return_id` INT UNSIGNED NOT NULL,
+    `sales_return_item_id` INT UNSIGNED NOT NULL,
+    `product_id` INT UNSIGNED NOT NULL,
+    `unit_id` INT UNSIGNED NOT NULL,
+    `quantity` DECIMAL(12,2) NOT NULL,
+    `condition_type` VARCHAR(50) DEFAULT 'good',
+    `resell_status` ENUM('quarantine_holding', 'restocked_active', 'written_off') DEFAULT 'quarantine_holding',
+    `restocked_qty` DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+    `inspected_by` INT UNSIGNED NULL,
+    `inspected_at` DATETIME NULL,
+    `inspection_notes` TEXT NULL,
+    CONSTRAINT `fk_shi_sh` FOREIGN KEY (`stock_handover_id`) REFERENCES `stock_handovers` (`id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_shi_sr` FOREIGN KEY (`sales_return_id`) REFERENCES `sales_returns` (`id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_shi_prod` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 DROP TABLE IF EXISTS `credit_notes`;
@@ -937,6 +985,52 @@ CREATE TABLE `daily_closings` (
     `closed_at` DATETIME NULL,
     `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT `fk_dc_closed_by` FOREIGN KEY (`closed_by`) REFERENCES `users` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 24. Staff Salaries & Payroll
+DROP TABLE IF EXISTS `salary_slips`;
+DROP TABLE IF EXISTS `payroll_periods`;
+CREATE TABLE `payroll_periods` (
+    `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `period_code` VARCHAR(20) NOT NULL UNIQUE,
+    `month_year` VARCHAR(50) NOT NULL,
+    `start_date` DATE NOT NULL,
+    `end_date` DATE NOT NULL,
+    `total_gross_salary` DECIMAL(14, 2) NOT NULL DEFAULT 0.00,
+    `total_commissions` DECIMAL(14, 2) NOT NULL DEFAULT 0.00,
+    `total_deductions` DECIMAL(14, 2) NOT NULL DEFAULT 0.00,
+    `total_net_salary` DECIMAL(14, 2) NOT NULL DEFAULT 0.00,
+    `status` ENUM('draft', 'approved', 'paid') NOT NULL DEFAULT 'approved',
+    `processed_by` INT UNSIGNED NULL,
+    `processed_at` DATETIME NULL,
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT `fk_pp_processed_by` FOREIGN KEY (`processed_by`) REFERENCES `users` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `salary_slips` (
+    `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `payroll_period_id` INT UNSIGNED NOT NULL,
+    `slip_number` VARCHAR(50) NOT NULL UNIQUE,
+    `employee_id` INT UNSIGNED NOT NULL,
+    `base_salary` DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
+    `commission_amount` DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
+    `bonus_amount` DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
+    `allowances` DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
+    `deductions` DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
+    `net_salary` DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
+    `orders_count` INT NOT NULL DEFAULT 0,
+    `sales_volume` DECIMAL(14, 2) NOT NULL DEFAULT 0.00,
+    `status` ENUM('pending', 'paid', 'cancelled') NOT NULL DEFAULT 'pending',
+    `payment_date` DATE NULL,
+    `payment_method` VARCHAR(50) NULL DEFAULT 'cash',
+    `remarks` VARCHAR(255) NULL,
+    `paid_by` INT UNSIGNED NULL,
+    `journal_entry_id` INT UNSIGNED NULL,
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT `fk_ss_period` FOREIGN KEY (`payroll_period_id`) REFERENCES `payroll_periods` (`id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_ss_employee` FOREIGN KEY (`employee_id`) REFERENCES `employees` (`id`),
+    CONSTRAINT `fk_ss_paid_by` FOREIGN KEY (`paid_by`) REFERENCES `users` (`id`) ON DELETE SET NULL,
+    CONSTRAINT `fk_ss_journal` FOREIGN KEY (`journal_entry_id`) REFERENCES `journal_entries` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 SET FOREIGN_KEY_CHECKS = 1;

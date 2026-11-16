@@ -133,17 +133,18 @@ while ($row = $areaChartStmt->fetch()) {
 
 // 4. Chart: Top 5 Selling Products
 $topProdStmt = $pdo->query("
-    SELECT p.name as product_name, COALESCE(SUM(soi.line_total), 0) as product_sales
+    SELECT p.id, p.name as product_name, p.code as product_code, COALESCE(SUM(soi.line_total), 0) as product_sales
     FROM `sales_order_items` soi
     JOIN `products` p ON soi.product_id = p.id
     JOIN `sales_orders` so ON soi.sales_order_id = so.id AND so.status != 'cancelled'
-    GROUP BY p.id, p.name
+    GROUP BY p.id, p.name, p.code
     ORDER BY product_sales DESC
     LIMIT 5
 ");
+$topProductsList = $topProdStmt->fetchAll(PDO::FETCH_ASSOC);
 $topProdLabels = [];
 $topProdValues = [];
-while ($row = $topProdStmt->fetch()) {
+foreach ($topProductsList as $row) {
     $topProdLabels[] = $row['product_name'];
     $topProdValues[] = (float)$row['product_sales'];
 }
@@ -364,14 +365,27 @@ require_once __DIR__ . '/includes/header.php';
         <div class="card border-0 shadow-sm rounded-3 h-100">
             <div class="card-header bg-white py-3 border-0 d-flex justify-content-between align-items-center">
                 <div>
-                    <h6 class="fw-bold mb-0 text-dark"><i class="bi bi-trophy-fill me-2 text-warning"></i>Top 5 Selling Products</h6>
-                    <small class="text-muted">Highest booked revenue by SKU</small>
+                    <h6 class="fw-bold mb-0 text-dark"><i class="bi bi-trophy-fill me-2 text-warning"></i>Top Selling Products</h6>
+                    <small class="text-muted">Highest booked revenue by product name</small>
                 </div>
             </div>
             <div class="card-body pt-0 pb-3">
-                <div style="position: relative; height: 250px; width: 100%;">
+                <div style="position: relative; height: 230px; width: 100%;">
                     <canvas id="topProductsChart"></canvas>
                 </div>
+                <?php if (!empty($topProductsList)): ?>
+                <div class="mt-2 pt-2 border-top d-flex flex-wrap justify-content-between gap-1 small">
+                    <?php 
+                    $rankColors = ['text-warning', 'text-primary', 'text-success', 'text-info', 'text-secondary'];
+                    foreach ($topProductsList as $idx => $tp): 
+                        $colorClass = $rankColors[$idx % count($rankColors)];
+                    ?>
+                        <span class="badge bg-light text-dark border">
+                            <span class="<?= $colorClass ?> fw-bold">#<?= $idx + 1 ?></span> <?= htmlspecialchars($tp['product_name']) ?>: <strong class="text-dark"><?= formatMoney((float)$tp['product_sales']) ?></strong>
+                        </span>
+                    <?php endforeach; ?>
+                </div>
+                <?php endif; ?>
             </div>
         </div>
     </div>
@@ -658,20 +672,19 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // 4. Top Selling Products Horizontal Bar Chart
+    // 4. Top Selling Products Bar Chart (Displays exact Product Names)
     const topCtx = document.getElementById('topProductsChart');
     if (topCtx) {
         new Chart(topCtx.getContext('2d'), {
             type: 'bar',
-            indexAxis: 'y',
             data: {
                 labels: <?= json_encode($topProdLabels) ?>,
                 datasets: [{
-                    label: 'Booked Sales',
+                    label: 'Booked Sales (PKR)',
                     data: <?= json_encode($topProdValues) ?>,
-                    backgroundColor: '#f59e0b',
+                    backgroundColor: ['#f59e0b', '#3b82f6', '#10b981', '#6366f1', '#ec4899'],
                     borderRadius: 6,
-                    maxBarThickness: 24
+                    maxBarThickness: 45
                 }]
             },
             options: {
@@ -681,14 +694,31 @@ document.addEventListener('DOMContentLoaded', function () {
                     legend: { display: false },
                     tooltip: {
                         callbacks: {
+                            title: function (items) {
+                                return items[0].label;
+                            },
                             label: function (ctx) {
-                                return 'Sales: ' + formatPKR(ctx.parsed.x);
+                                return 'Sales: ' + formatPKR(ctx.parsed.y);
                             }
                         }
                     }
                 },
                 scales: {
                     x: {
+                        type: 'category',
+                        grid: { display: false },
+                        ticks: {
+                            font: { size: 11, weight: '500' },
+                            maxRotation: 20,
+                            minRotation: 0,
+                            callback: function (val, index) {
+                                const lbl = this.getLabelForValue(val);
+                                return (lbl && lbl.length > 20) ? lbl.substring(0, 18) + '...' : lbl;
+                            }
+                        }
+                    },
+                    y: {
+                        type: 'linear',
                         beginAtZero: true,
                         ticks: {
                             callback: function (val) {
@@ -696,8 +726,7 @@ document.addEventListener('DOMContentLoaded', function () {
                             }
                         },
                         grid: { color: '#f1f5f9' }
-                    },
-                    y: { grid: { display: false } }
+                    }
                 }
             }
         });

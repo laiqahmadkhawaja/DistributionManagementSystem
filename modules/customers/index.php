@@ -146,9 +146,14 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
                                     <?= formatMoney($c['credit_limit']) ?>
                                 </td>
                                 <td data-label="Action" class="text-end">
-                                    <a href="<?= BASE_URL ?>/modules/customers/ledger.php?id=<?= $c['id'] ?>" class="btn btn-sm btn-outline-primary" title="View Customer Ledger">
-                                        <i class="bi bi-journal-text me-1"></i> Ledger
-                                    </a>
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="<?= BASE_URL ?>/modules/payments/recovery.php?customer_id=<?= $c['id'] ?>" class="btn btn-outline-success" title="Record Payment Recovery">
+                                            <i class="bi bi-cash-coin me-1"></i> Recover
+                                        </a>
+                                        <a href="<?= BASE_URL ?>/modules/customers/ledger.php?id=<?= $c['id'] ?>" class="btn btn-outline-primary" title="View Customer Ledger">
+                                            <i class="bi bi-journal-text me-1"></i> Ledger
+                                        </a>
+                                    </div>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
