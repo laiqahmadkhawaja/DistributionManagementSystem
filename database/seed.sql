@@ -89,15 +89,12 @@ INSERT INTO `permissions` (`id`, `module`, `action`, `description`) VALUES
 (53, 'reports', 'inventory', 'View stock movements and valuation'),
 (54, 'settings', 'view', 'View system settings'),
 (55, 'settings', 'edit', 'Update business settings and configurations'),
-(56, 'returns', 'view', 'View sales returns and quarantine stock'),
-(57, 'returns', 'create', 'Record sales return from retail customer'),
-(58, 'returns', 'approve', 'Approve sales return and mark to resell'),
 (59, 'payroll', 'view', 'View salary slips and payroll periods'),
 (60, 'payroll', 'create', 'Generate monthly staff payroll'),
 (61, 'payroll', 'disburse', 'Disburse salary slips and post to ledger')
 ON DUPLICATE KEY UPDATE `description`=VALUES(`description`);
 
--- Assign Permissions to Super Admin (All permissions 1..55)
+-- Assign Permissions to Super Admin (All permissions)
 DELETE FROM `role_permissions` WHERE `role_id` = 1;
 INSERT INTO `role_permissions` (`role_id`, `permission_id`)
 SELECT 1, `id` FROM `permissions`;
@@ -132,8 +129,8 @@ INSERT INTO `role_permissions` (`role_id`, `permission_id`) VALUES
 (5, 35), -- delivery.collect_payment
 (5, 36), -- payments.view
 (5, 38), -- payments.handover
-(5, 56), -- returns.view
-(5, 57); -- returns.create
+(5, 40), -- returns.view
+(5, 41); -- returns.create
 
 -- Assign Permissions to Storekeeper
 DELETE FROM `role_permissions` WHERE `role_id` = 6;
@@ -155,8 +152,8 @@ INSERT INTO `role_permissions` (`role_id`, `permission_id`) VALUES
 DELETE FROM `role_permissions` WHERE `role_id` = 7;
 INSERT INTO `role_permissions` (`role_id`, `permission_id`) VALUES
 (7, 1), (7, 2), (7, 13), (7, 22), (7, 26), (7, 36), (7, 37), (7, 39),
-(7, 43), (7, 44), (7, 45), (7, 49), (7, 50), (7, 51), (7, 52), (7, 53),
-(7, 56), (7, 58), (7, 59), (7, 60), (7, 61);
+(7, 40), (7, 42), (7, 43), (7, 44), (7, 45), (7, 49), (7, 50), (7, 51), (7, 52), (7, 53),
+(7, 59), (7, 60), (7, 61);
 
 -- 5. Chart of Accounts (Complete Double-Entry Framework)
 INSERT INTO `chart_of_accounts` (`id`, `code`, `name`, `group_type`, `parent_id`, `is_active`, `system_tag`) VALUES
