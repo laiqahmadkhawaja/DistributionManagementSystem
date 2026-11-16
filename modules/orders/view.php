@@ -39,7 +39,7 @@ if (!$order) {
 
 // Fetch line items
 $itemsStmt = $pdo->prepare("
-    SELECT soi.*, p.name as product_name, p.code as product_code, u.name as unit_name
+    SELECT soi.*, p.name as product_name, p.code as product_code, p.base_unit_id, u.name as unit_name
     FROM `sales_order_items` soi
     JOIN `products` p ON soi.product_id = p.id
     JOIN `units` u ON soi.unit_id = u.id
@@ -70,10 +70,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($action === 'approve') {
             requirePermission('orders', 'approve');
 
-            // Stock Reservation logic: Reserve stock in default warehouse
+            // Stock Reservation logic: Reserve physical base stock in default warehouse
             $defaultWarehouseId = 1;
             foreach ($items as $item) {
-                reserveStockForOrder($pdo, $orderId, $defaultWarehouseId, $item['product_id'], (float)$item['quantity']);
+                $baseUnitId = (int)($item['base_unit_id'] ?: $item['unit_id']);
+                $physicalReservedQty = convertUnitQuantity($pdo, (int)$item['product_id'], (int)$item['unit_id'], $baseUnitId, (float)$item['quantity']);
+                reserveStockForOrder($pdo, $orderId, $defaultWarehouseId, (int)$item['product_id'], $physicalReservedQty);
             }
 
             $upd = $pdo->prepare("

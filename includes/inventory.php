@@ -149,11 +149,24 @@ function convertUnitQuantity(PDO $pdo, int $productId, int $fromUnitId, int $toU
         return $qty * (float)$mult;
     }
 
-    // Check reverse conversion
+    // 2. Check reverse conversion
     $stmt->execute([$productId, $toUnitId, $fromUnitId]);
     $revMult = $stmt->fetchColumn();
     if ($revMult !== false && (float)$revMult > 0) {
         return $qty / (float)$revMult;
+    }
+
+    // 3. Check 2-step chained conversion (e.g. 1 Carton = 12 Boxes, 1 Box = 24 Pieces => 288 Pieces)
+    $allConvs = $pdo->query("SELECT * FROM `unit_conversions` WHERE product_id = {$productId} OR product_id IS NULL ORDER BY product_id DESC")->fetchAll();
+    foreach ($allConvs as $c1) {
+        if ((int)$c1['from_unit_id'] === $fromUnitId) {
+            $midUnitId = (int)$c1['to_unit_id'];
+            foreach ($allConvs as $c2) {
+                if ((int)$c2['from_unit_id'] === $midUnitId && (int)$c2['to_unit_id'] === $toUnitId) {
+                    return $qty * ((float)$c1['multiplier'] * (float)$c2['multiplier']);
+                }
+            }
+        }
     }
 
     // Fallback: 1-to-1 if undefined
