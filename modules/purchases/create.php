@@ -14,6 +14,13 @@ $currentUser = getCurrentUser();
 $suppliers = $pdo->query("SELECT id, name, company_name FROM `suppliers` WHERE status = 'active' ORDER BY name ASC")->fetchAll();
 $warehouses = $pdo->query("SELECT id, name FROM `warehouses` WHERE status = 'active' ORDER BY is_default DESC")->fetchAll();
 $products = $pdo->query("SELECT id, code, name, purchase_price, base_unit_id FROM `products` WHERE status = 'active' ORDER BY name ASC")->fetchAll();
+$allUnits = $pdo->query("SELECT id, name, code, is_base FROM `units` ORDER BY is_base DESC, id ASC")->fetchAll();
+$allConversions = $pdo->query("
+    SELECT uc.*, u1.name as from_name, u1.code as from_code, u2.name as to_name, u2.code as to_code 
+    FROM `unit_conversions` uc
+    JOIN `units` u1 ON uc.from_unit_id = u1.id
+    JOIN `units` u2 ON uc.to_unit_id = u2.id
+")->fetchAll();
 
 // Handle POST Submission BEFORE HTML output
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -203,11 +210,12 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
                         <table class="table table-bordered table-sm align-middle" id="po-items-table">
                             <thead class="table-light small">
                                 <tr>
-                                    <th>Product</th>
-                                    <th style="width: 100px;">Qty</th>
-                                    <th style="width: 120px;">Unit Cost</th>
-                                    <th style="width: 120px;" class="text-end">Total</th>
-                                    <th style="width: 40px;"></th>
+                                    <th style="min-width: 170px;">Product</th>
+                                    <th style="width: 140px;">Packaging Unit</th>
+                                    <th style="width: 80px;">Qty</th>
+                                    <th style="width: 110px;">Unit Cost</th>
+                                    <th style="width: 110px;" class="text-end">Total</th>
+                                    <th style="width: 38px;"></th>
                                 </tr>
                             </thead>
                             <tbody id="po-items-container">
@@ -235,9 +243,35 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
 </form>
 
 <script>
-const prodsList = <?= json_encode($products) ?>;
+const prodsList = <?= json_encode($products, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
+const allUnits = <?= json_encode($allUnits, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
+const allConversions = <?= json_encode($allConversions, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
 
-function addPoRow(defaultId = null) {
+function getUnitMultiplier(fromUnitId, toUnitId) {
+    fromUnitId = parseInt(fromUnitId);
+    toUnitId = parseInt(toUnitId);
+    if (!fromUnitId || !toUnitId || fromUnitId === toUnitId) return 1.0;
+
+    // Direct rule
+    let direct = allConversions.find(c => parseInt(c.from_unit_id) === fromUnitId && parseInt(c.to_unit_id) === toUnitId);
+    if (direct) return parseFloat(direct.multiplier);
+
+    // Reverse rule
+    let rev = allConversions.find(c => parseInt(c.from_unit_id) === toUnitId && parseInt(c.to_unit_id) === fromUnitId);
+    if (rev && parseFloat(rev.multiplier) > 0) return 1.0 / parseFloat(rev.multiplier);
+
+    // 2-step chain (e.g. Carton -> Box -> Piece)
+    let step1 = allConversions.filter(c => parseInt(c.from_unit_id) === fromUnitId);
+    for (let s1 of step1) {
+        let step2 = allConversions.find(c => parseInt(c.from_unit_id) === parseInt(s1.to_unit_id) && parseInt(c.to_unit_id) === toUnitId);
+        if (step2) {
+            return parseFloat(s1.multiplier) * parseFloat(step2.multiplier);
+        }
+    }
+    return 1.0;
+}
+
+function addPoRow(defaultId = null, defaultUnitId = null) {
     const container = document.getElementById('po-items-container');
     const tr = document.createElement('tr');
     tr.className = 'po-row';
@@ -251,7 +285,11 @@ function addPoRow(defaultId = null) {
     tr.innerHTML = `
         <td>
             <select class="form-select form-select-sm po-prod-sel" name="prod_id[]" required>${options}</select>
-            <input type="hidden" name="unit_id[]" class="po-unit-id" value="1">
+        </td>
+        <td>
+            <select class="form-select form-select-sm po-unit-sel" name="unit_id[]" required>
+                <option value="">-- Unit --</option>
+            </select>
         </td>
         <td>
             <input type="number" class="form-control form-control-sm po-qty text-center" name="quantity[]" value="1" min="1" step="1" required>
@@ -268,19 +306,63 @@ function addPoRow(defaultId = null) {
     container.appendChild(tr);
 
     const sel = tr.querySelector('.po-prod-sel');
+    const unitSel = tr.querySelector('.po-unit-sel');
     const qty = tr.querySelector('.po-qty');
     const cost = tr.querySelector('.po-cost');
     const del = tr.querySelector('.po-del-btn');
 
-    sel.addEventListener('change', function() {
-        const opt = this.options[this.selectedIndex];
-        if (this.value) {
-            cost.value = parseFloat(opt.getAttribute('data-cost') || 0).toFixed(2);
-            tr.querySelector('.po-unit-id').value = opt.getAttribute('data-unit') || 1;
-        } else {
-            cost.value = '0.00';
-            tr.querySelector('.po-unit-id').value = '1';
+    function populateRowUnits(productId, preselectedUnitId = null) {
+        unitSel.innerHTML = '';
+        const prod = prodsList.find(p => p.id == productId);
+        if (!prod) {
+            unitSel.innerHTML = '<option value="">-- Unit --</option>';
+            return;
         }
+
+        const baseUnit = allUnits.find(u => u.id == prod.base_unit_id);
+        if (baseUnit) {
+            const isSel = (!preselectedUnitId || preselectedUnitId == baseUnit.id) ? 'selected' : '';
+            unitSel.innerHTML += `<option value="${baseUnit.id}" data-multiplier="1" ${isSel}>${baseUnit.name} (${baseUnit.code})</option>`;
+        }
+
+        allUnits.forEach(u => {
+            if (!baseUnit || u.id != baseUnit.id) {
+                const mult = getUnitMultiplier(u.id, prod.base_unit_id);
+                let label = `${u.name} (${u.code})`;
+                if (mult > 1) {
+                    label += ` (x${mult} ${baseUnit ? baseUnit.code : ''})`;
+                }
+                const isSel = (preselectedUnitId && preselectedUnitId == u.id) ? 'selected' : '';
+                unitSel.innerHTML += `<option value="${u.id}" data-multiplier="${mult}" ${isSel}>${label}</option>`;
+            }
+        });
+    }
+
+    function updateUnitCost() {
+        const prod = prodsList.find(p => p.id == sel.value);
+        if (!prod) {
+            cost.value = '0.00';
+            return;
+        }
+        const unitOpt = unitSel.options[unitSel.selectedIndex];
+        const mult = unitOpt ? parseFloat(unitOpt.getAttribute('data-multiplier') || 1) : 1;
+        const baseCost = parseFloat(prod.purchase_price || 0);
+        cost.value = (baseCost * mult).toFixed(2);
+    }
+
+    sel.addEventListener('change', function() {
+        if (this.value) {
+            populateRowUnits(this.value);
+            updateUnitCost();
+        } else {
+            unitSel.innerHTML = '<option value="">-- Unit --</option>';
+            cost.value = '0.00';
+        }
+        recalc();
+    });
+
+    unitSel.addEventListener('change', function() {
+        updateUnitCost();
         recalc();
     });
 
@@ -292,13 +374,19 @@ function addPoRow(defaultId = null) {
             recalc();
         } else {
             sel.value = '';
+            unitSel.innerHTML = '<option value="">-- Unit --</option>';
             qty.value = '1';
             cost.value = '0.00';
             recalc();
         }
     });
 
-    if (defaultId) sel.dispatchEvent(new Event('change'));
+    if (defaultId) {
+        sel.value = defaultId;
+        populateRowUnits(defaultId, defaultUnitId);
+        updateUnitCost();
+        recalc();
+    }
 }
 
 function recalc() {
