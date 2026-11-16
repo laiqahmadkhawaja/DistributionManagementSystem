@@ -89,6 +89,7 @@ try {
         INSERT INTO `sales_order_items` (`sales_order_id`, `product_id`, `unit_id`, `unit_price`, `quantity`, `line_total`)
         VALUES (?, ?, ?, ?, ?, ?)
     ")->execute([$orderId, $product['id'], $product['base_unit_id'], $orderPrice, $orderQty, $orderTotal]);
+    $soiId = (int)$pdo->lastInsertId();
     $pdo->commit();
 
     // Verify booking does NOT deduct stock yet
@@ -119,8 +120,8 @@ try {
 
     $pdo->prepare("
         INSERT INTO `delivery_items` (`delivery_assignment_id`, `sales_order_item_id`, `product_id`, `unit_id`, `dispatched_qty`, `unit_price`, `total_amount`)
-        VALUES (?, 1, ?, ?, ?, ?, ?)
-    ")->execute([$daId, $product['id'], $product['base_unit_id'], $orderQty, $orderPrice, $orderTotal]);
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    ")->execute([$daId, $soiId, $product['id'], $product['base_unit_id'], $orderQty, $orderPrice, $orderTotal]);
 
     // Record stock outflow
     recordStockMovement($pdo, 1, $product['id'], 'sale_dispatch', 'delivery_assignment', $daId, $product['base_unit_id'], 0.00, $orderQty, (float)$product['purchase_price'], null, "Test Dispatch");
@@ -225,6 +226,34 @@ try {
         SELECT COUNT(*) FROM `journal_entries` WHERE ABS(total_debit - total_credit) > 0.001
     ")->fetchColumn();
     assertCondition("Zero Unbalanced Journal Entries Across Whole System", $unbalancedCount === 0, "Unbalanced count: {$unbalancedCount}");
+
+    // ----------------------------------------------------
+    // CLEANUP: Clean up test artifacts so test suite leaves production database clean
+    // ----------------------------------------------------
+    if (!empty($daId)) {
+        $pdo->prepare("DELETE FROM `delivery_items` WHERE delivery_assignment_id = ?")->execute([$daId]);
+        $pdo->prepare("DELETE FROM `delivery_assignments` WHERE id = ?")->execute([$daId]);
+    }
+    if (!empty($invId)) {
+        $pdo->prepare("DELETE FROM `sales_invoice_items` WHERE sales_invoice_id = ?")->execute([$invId]);
+        $pdo->prepare("DELETE FROM `sales_invoices` WHERE id = ?")->execute([$invId]);
+    }
+    if (!empty($orderId)) {
+        $pdo->prepare("DELETE FROM `stock_reservations` WHERE order_id = ?")->execute([$orderId]);
+        $pdo->prepare("DELETE FROM `order_status_history` WHERE sales_order_id = ?")->execute([$orderId]);
+        $pdo->prepare("DELETE FROM `sales_order_items` WHERE sales_order_id = ?")->execute([$orderId]);
+        $pdo->prepare("DELETE FROM `sales_orders` WHERE id = ?")->execute([$orderId]);
+    }
+    if (!empty($payId)) {
+        $pdo->prepare("DELETE FROM `payments` WHERE id = ?")->execute([$payId]);
+    }
+    if (!empty($expId)) {
+        $pdo->prepare("DELETE FROM `expenses` WHERE id = ?")->execute([$expId]);
+    }
+    if (!empty($grnId)) {
+        $pdo->prepare("DELETE FROM `goods_receipt_items` WHERE goods_receipt_id = ?")->execute([$grnId]);
+        $pdo->prepare("DELETE FROM `goods_receipts` WHERE id = ?")->execute([$grnId]);
+    }
 
     echo "\n----------------------------------------------------\n";
     echo "TEST SUMMARY: {$testsPassed} PASSED, {$testsFailed} FAILED.\n";
