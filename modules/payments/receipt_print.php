@@ -23,12 +23,14 @@ $stmt = $pdo->prepare("
            c.address as cust_address, c.code as cust_code, c.current_balance as latest_balance,
            a.name as area_name,
            e.full_name as collector_name, e.employee_code as collector_code, e.phone as collector_phone,
-           pm.name as method_name
+           pm.name as method_name,
+           coa.code as account_code, coa.name as account_name
     FROM `payments` p
     JOIN `customers` c ON p.party_id = c.id
     JOIN `areas` a ON c.area_id = a.id
     JOIN `payment_methods` pm ON p.payment_method_id = pm.id
     LEFT JOIN `employees` e ON p.collected_by = e.id
+    LEFT JOIN `chart_of_accounts` coa ON p.payment_account_id = coa.id
     WHERE p.id = ? AND p.party_type = 'customer'
     LIMIT 1
 ");
@@ -149,6 +151,9 @@ $autoprint = isset($_GET['print']) && $_GET['print'] == '1';
             <div><span class="text-muted">Receipt No:</span> <strong class="text-primary"><?= htmlspecialchars($receipt['payment_number']) ?></strong></div>
             <div><span class="text-muted">Date:</span> <strong><?= formatDate($receipt['payment_date']) ?></strong></div>
             <div><span class="text-muted">Payment Mode:</span> <span class="badge bg-light text-dark border"><?= strtoupper($receipt['payment_method_code']) ?></span></div>
+            <?php if (!empty($receipt['account_name'])): ?>
+                <div><span class="text-muted">Deposited Into:</span> <strong><?= htmlspecialchars($receipt['account_name']) ?></strong> <small class="text-muted">(<?= htmlspecialchars($receipt['account_code']) ?>)</small></div>
+            <?php endif; ?>
             <?php if (!empty($receipt['reference_no'])): ?>
                 <div><span class="text-muted">Ref/TID:</span> <strong><?= htmlspecialchars($receipt['reference_no']) ?></strong></div>
             <?php endif; ?>

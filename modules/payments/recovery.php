@@ -31,6 +31,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['record_recovery'])) {
     $recoveryDate = sanitize($_POST['recovery_date'] ?? date('Y-m-d'));
     $amount = (float)($_POST['amount'] ?? 0.00);
     $methodCode = sanitize($_POST['payment_method_code'] ?? 'cash');
+    $paymentAccountId = (int)($_POST['payment_account_id'] ?? 0);
     $referenceNo = sanitize($_POST['reference_no'] ?? '');
     $notes = sanitize($_POST['notes'] ?? '');
 
@@ -82,6 +83,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['record_recovery'])) {
         $methodCode = 'cash';
     }
 
+    // Validate or fallback payment account
+    if ($paymentAccountId <= 0) {
+        $paymentAccountId = (int)$pm['account_id'];
+    }
+
+    // Verify account exists and is active asset
+    $accStmt = $pdo->prepare("SELECT id, name, code FROM `chart_of_accounts` WHERE id = ? AND is_active = 1");
+    $accStmt->execute([$paymentAccountId]);
+    $recAcc = $accStmt->fetch();
+    if (!$recAcc) {
+        throw new Exception("Invalid deposit cash/bank account selected.");
+    }
+
     try {
         $pdo->beginTransaction();
 
@@ -102,7 +116,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['record_recovery'])) {
         ");
         $pStmt->execute([
             $receiptNumber, $customerId, $customerId, $amount,
-            $pm['id'], $methodCode, $pm['account_id'], $recoveryDate,
+            $pm['id'], $methodCode, $paymentAccountId, $recoveryDate,
             $referenceNo, $collectorId, $handoverStatus, $notes,
             $currentUser['id']
         ]);
@@ -154,7 +168,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['record_recovery'])) {
             $receiptNumber,
             $customerId,
             $amount,
-            (int)$pm['account_id'],
+            $paymentAccountId,
             $currentUser['id']
         );
 
@@ -165,13 +179,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['record_recovery'])) {
             'shop_name' => $customer['shop_name'],
             'amount' => $amount,
             'method' => $methodCode,
+            'account' => "{$recAcc['code']} - {$recAcc['name']}",
             'collector_id' => $collectorId,
             'handover_status' => $handoverStatus
         ]);
 
         $pdo->commit();
 
-        $successMsg = "Payment recovery <strong>{$receiptNumber}</strong> of " . formatMoney($amount) . " from <strong>" . htmlspecialchars($customer['shop_name']) . "</strong> recorded successfully!";
+        $successMsg = "Payment recovery <strong>{$receiptNumber}</strong> of " . formatMoney($amount) . " from <strong>" . htmlspecialchars($customer['shop_name']) . "</strong> deposited into <strong>" . htmlspecialchars($recAcc['name']) . "</strong> recorded successfully!";
         setFlashMessage('success', $successMsg);
         redirect(BASE_URL . '/modules/payments/recovery.php?last_id=' . $paymentId . '&customer_id=' . $customerId);
 
@@ -226,6 +241,17 @@ $customers = $pdo->query("
 // Fetch Payment Methods
 $paymentMethods = $pdo->query("SELECT * FROM `payment_methods` WHERE is_active = 1 ORDER BY id ASC")->fetchAll();
 
+// Available Cash & Bank Accounts for Recovery Receipt
+$paymentAccounts = $pdo->query("
+    SELECT id, code, name, system_tag 
+    FROM `chart_of_accounts` 
+    WHERE is_active = 1 
+      AND group_type = 'Asset' 
+      AND (system_tag IN ('cash', 'bank') OR parent_id = 1) 
+      AND (system_tag IS NULL OR system_tag NOT IN ('receivables', 'inventory'))
+    ORDER BY code ASC
+")->fetchAll();
+
 // Fetch Collectors / Recovery Personnel
 $collectors = $pdo->query("
     SELECT id, employee_code, full_name, role_type, phone
@@ -278,11 +304,13 @@ $recWhereSql = implode(' AND ', $recWhere);
 
 $recentStmt = $pdo->prepare("
     SELECT p.*, c.shop_name, c.owner_name, c.phone as cust_phone, c.current_balance as latest_balance,
-           a.name as area_name, e.full_name as collector_name, e.employee_code as collector_code
+           a.name as area_name, e.full_name as collector_name, e.employee_code as collector_code,
+           coa.code as account_code, coa.name as account_name
     FROM `payments` p
     JOIN `customers` c ON p.party_id = c.id
     JOIN `areas` a ON c.area_id = a.id
     LEFT JOIN `employees` e ON p.collected_by = e.id
+    LEFT JOIN `chart_of_accounts` coa ON p.payment_account_id = coa.id
     WHERE {$recWhereSql}
     ORDER BY p.id DESC
     LIMIT 50
@@ -296,11 +324,13 @@ $lastPayment = null;
 if ($lastPaymentId > 0) {
     $lpStmt = $pdo->prepare("
         SELECT p.*, c.shop_name, c.owner_name, c.phone as cust_phone, c.whatsapp as cust_whatsapp, 
-               c.current_balance as current_balance, a.name as area_name, e.full_name as collector_name
+               c.current_balance as current_balance, a.name as area_name, e.full_name as collector_name,
+               coa.code as account_code, coa.name as account_name
         FROM `payments` p
         JOIN `customers` c ON p.party_id = c.id
         JOIN `areas` a ON c.area_id = a.id
         LEFT JOIN `employees` e ON p.collected_by = e.id
+        LEFT JOIN `chart_of_accounts` coa ON p.payment_account_id = coa.id
         WHERE p.id = ?
     ");
     $lpStmt->execute([$lastPaymentId]);
@@ -519,6 +549,19 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
                         </div>
                     </div>
 
+                    <!-- Deposit Into Account Selection -->
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">Deposit Into Account <span class="text-danger">*</span></label>
+                        <select class="form-select form-select-sm fw-semibold" name="payment_account_id" id="recovery_account_id" required>
+                            <?php foreach ($paymentAccounts as $pAcc): ?>
+                                <option value="<?= $pAcc['id'] ?>" data-tag="<?= htmlspecialchars($pAcc['system_tag'] ?? '') ?>" <?= ($pAcc['system_tag'] === 'cash') ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars($pAcc['code']) ?> - <?= htmlspecialchars($pAcc['name']) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                        <div class="form-text small" style="font-size: 0.72rem;">Cash in Hand or receiving Bank Account where funds are booked</div>
+                    </div>
+
                     <!-- Handover Status Indicator Alert -->
                     <div id="handoverAlert" class="alert alert-warning py-2 px-3 small border-0 rounded-2 mb-3">
                         <i class="bi bi-info-circle me-1"></i><strong>Physical Cash:</strong> This cash will be placed under the recovery officer's custody and must be surrendered during <strong>Cash Handover</strong>.
@@ -680,8 +723,11 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
                                         </td>
                                         <td data-label="Method">
                                             <span class="badge bg-light text-dark border"><?= strtoupper($rec['payment_method_code']) ?></span>
+                                            <?php if (!empty($rec['account_name'])): ?>
+                                                <div class="text-muted small" style="font-size: 0.72rem;"><?= htmlspecialchars($rec['account_code'] . ' - ' . $rec['account_name']) ?></div>
+                                            <?php endif; ?>
                                             <?php if (!empty($rec['reference_no'])): ?>
-                                                <div class="text-muted" style="font-size: 0.65rem;"><?= htmlspecialchars($rec['reference_no']) ?></div>
+                                                <div class="text-muted" style="font-size: 0.65rem;">Ref: <?= htmlspecialchars($rec['reference_no']) ?></div>
                                             <?php endif; ?>
                                         </td>
                                         <td data-label="Amount" class="text-end fw-bold text-success fs-6">
@@ -775,6 +821,18 @@ function handleMethodChange(method) {
     const refGroup = document.getElementById('refGroup');
     const refLabel = document.getElementById('refLabel');
     const inputRef = document.getElementById('inputRef');
+    const accSelect = document.getElementById('recovery_account_id');
+
+    // Auto-select corresponding default account (Cash vs Bank)
+    const targetTag = (method === 'cash') ? 'cash' : 'bank';
+    if (accSelect) {
+        for (let i = 0; i < accSelect.options.length; i++) {
+            if (accSelect.options[i].getAttribute('data-tag') === targetTag) {
+                accSelect.selectedIndex = i;
+                break;
+            }
+        }
+    }
 
     if (method === 'cash') {
         alertBox.className = 'alert alert-warning py-2 px-3 small border-0 rounded-2 mb-3';

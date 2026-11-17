@@ -55,11 +55,14 @@ while ($row = $invStmt->fetch()) {
 
 // 2. Payments
 $payStmt = $pdo->prepare("
-    SELECT payment_date as tx_date, payment_number as doc_number, 'Payment Receipt' as tx_type,
-           CONCAT('Payment via ', UPPER(payment_method_code), ' (Ref: ', COALESCE(reference_no, '-'), ')') as description,
-           0.00 as debit, amount as credit, created_at
-    FROM `payments`
-    WHERE party_type = 'customer' AND party_id = ? AND status = 'posted' AND payment_date BETWEEN ? AND ?
+    SELECT p.payment_date as tx_date, p.payment_number as doc_number, 'Payment Receipt' as tx_type,
+           CONCAT('Payment via ', UPPER(p.payment_method_code), 
+                  CASE WHEN coa.name IS NOT NULL THEN CONCAT(' [', coa.code, ' - ', coa.name, ']') ELSE '' END,
+                  ' (Ref: ', COALESCE(p.reference_no, '-'), ')') as description,
+           0.00 as debit, p.amount as credit, p.created_at
+    FROM `payments` p
+    LEFT JOIN `chart_of_accounts` coa ON p.payment_account_id = coa.id
+    WHERE p.party_type = 'customer' AND p.party_id = ? AND p.status = 'posted' AND p.payment_date BETWEEN ? AND ?
 ");
 $payStmt->execute([$customerId, $startDate, $endDate]);
 while ($row = $payStmt->fetch()) {

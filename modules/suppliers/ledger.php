@@ -18,6 +18,19 @@ $pdo = getDatabaseConnection();
 $company = getCompanyInfo($pdo);
 $currentUser = getCurrentUser();
 
+// Available Cash & Bank Accounts for Cash Flow Disbursement
+$paymentAccounts = $pdo->query("
+    SELECT id, code, name, system_tag 
+    FROM `chart_of_accounts` 
+    WHERE is_active = 1 
+      AND group_type = 'Asset' 
+      AND (system_tag IN ('cash', 'bank') OR parent_id = 1) 
+      AND (system_tag IS NULL OR system_tag NOT IN ('receivables', 'inventory'))
+    ORDER BY code ASC
+")->fetchAll();
+
+$paymentMethods = $pdo->query("SELECT id, name, code, account_id FROM `payment_methods` WHERE is_active = 1 ORDER BY id ASC")->fetchAll();
+
 $sStmt = $pdo->prepare("SELECT * FROM `suppliers` WHERE id = ?");
 $sStmt->execute([$supplierId]);
 $supplier = $sStmt->fetch();
@@ -34,6 +47,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['disburse_payment'])) 
     $amount = (float)($_POST['amount'] ?? 0.00);
     $payDate = $_POST['payment_date'] ?? date('Y-m-d');
     $methodCode = sanitize($_POST['payment_method'] ?? 'bank_transfer');
+    $paymentAccountId = (int)($_POST['payment_account_id'] ?? 0);
     $refNo = sanitize($_POST['reference_no'] ?? '');
     $notes = sanitize($_POST['notes'] ?? '');
 
@@ -53,6 +67,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['disburse_payment'])) 
             throw new Exception("Invalid payment method selected.");
         }
 
+        // Validate or fallback payment account
+        if ($paymentAccountId <= 0) {
+            $paymentAccountId = (int)$pm['account_id'];
+        }
+
+        // Fetch account name for verification and audit
+        $accStmt = $pdo->prepare("SELECT name, code FROM `chart_of_accounts` WHERE id = ?");
+        $accStmt->execute([$paymentAccountId]);
+        $acc = $accStmt->fetch();
+        if (!$acc) {
+            throw new Exception("Invalid disbursing cash/bank account selected.");
+        }
+
         $voucherNumber = generateDocNumber($pdo, 'payments', 'payment_number', 'PV-');
 
         $pStmt = $pdo->prepare("
@@ -65,21 +92,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['disburse_payment'])) 
         ");
         $pStmt->execute([
             $voucherNumber, $supplierId, $supplierId, $amount,
-            $pm['id'], $methodCode, $pm['account_id'], $payDate,
-            $refNo, $notes ?: "Disbursement to {$supplier['name']}",
+            $pm['id'], $methodCode, $paymentAccountId, $payDate,
+            $refNo, $notes ?: "Disbursement to {$supplier['name']} from {$acc['name']}",
             $currentUser['id']
         ]);
         $paymentId = (int)$pdo->lastInsertId();
 
         // Critical Double-Entry Accounting Rule:
         // Debit: Accounts Payable (Supplier)
-        // Credit: Cash / Bank
-        postSupplierPaymentAccounting($pdo, $paymentId, $voucherNumber, $supplierId, $amount, $pm['account_id'], $currentUser['id']);
+        // Credit: Cash / Bank (Selected Payment Account)
+        postSupplierPaymentAccounting($pdo, $paymentId, $voucherNumber, $supplierId, $amount, $paymentAccountId, $currentUser['id']);
 
-        logAudit($pdo, 'payments', $paymentId, 'supplier_pay', null, ['voucher' => $voucherNumber, 'supplier' => $supplier['name'], 'amount' => $amount]);
+        logAudit($pdo, 'payments', $paymentId, 'supplier_pay', null, [
+            'voucher' => $voucherNumber, 
+            'supplier' => $supplier['name'], 
+            'amount' => $amount,
+            'account' => "{$acc['code']} - {$acc['name']}"
+        ]);
         $pdo->commit();
 
-        setFlashMessage('success', "Payment voucher {$voucherNumber} of Rs. " . number_format($amount, 2) . " posted. Supplier payable reduced.");
+        setFlashMessage('success', "Payment voucher {$voucherNumber} of Rs. " . number_format($amount, 2) . " disbursed from {$acc['name']} posted successfully!");
         redirect(BASE_URL . "/modules/suppliers/ledger.php?id={$supplierId}");
 
     } catch (Exception $e) {
@@ -115,11 +147,14 @@ while ($row = $grnStmt->fetch()) {
 
 // 2. Supplier Payments
 $payStmt = $pdo->prepare("
-    SELECT payment_date as tx_date, payment_number as doc_number, 'Supplier Payment' as tx_type,
-           CONCAT('Payment via ', UPPER(payment_method_code), ' (Ref: ', COALESCE(reference_no, '-'), ')') as description,
-           amount as debit, 0.00 as credit, created_at
-    FROM `payments`
-    WHERE party_type = 'supplier' AND party_id = ? AND status = 'posted' AND payment_date BETWEEN ? AND ?
+    SELECT p.payment_date as tx_date, p.payment_number as doc_number, 'Supplier Payment' as tx_type,
+           CONCAT('Payment via ', UPPER(p.payment_method_code), 
+                  CASE WHEN coa.name IS NOT NULL THEN CONCAT(' [', coa.code, ' - ', coa.name, ']') ELSE '' END,
+                  ' (Ref: ', COALESCE(p.reference_no, '-'), ')') as description,
+           p.amount as debit, 0.00 as credit, p.created_at
+    FROM `payments` p
+    LEFT JOIN `chart_of_accounts` coa ON p.payment_account_id = coa.id
+    WHERE p.party_type = 'supplier' AND p.party_id = ? AND p.status = 'posted' AND p.payment_date BETWEEN ? AND ?
 ");
 $payStmt->execute([$supplierId, $startDate, $endDate]);
 while ($row = $payStmt->fetch()) {
@@ -190,26 +225,44 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
             <div class="row g-2">
                 <div class="col-md-3">
                     <label class="form-label small fw-semibold">Disbursement Amount (Rs.) <span class="text-danger">*</span></label>
-                    <input type="number" class="form-control form-control-sm" name="amount" required step="0.01" placeholder="e.g. 50000">
+                    <input type="number" class="form-control form-control-sm fw-bold text-success" name="amount" required step="0.01" placeholder="e.g. 50000">
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label small fw-semibold">Payment Method</label>
-                    <select class="form-select form-select-sm" name="payment_method">
-                        <option value="bank_transfer">Bank Transfer / Online</option>
-                        <option value="cheque">Company Cheque</option>
-                        <option value="cash">Cash in Hand</option>
+                    <label class="form-label small fw-semibold">Disbursing Account <span class="text-danger">*</span></label>
+                    <select class="form-select form-select-sm fw-semibold" name="payment_account_id" id="supp_payment_account" required>
+                        <?php foreach ($paymentAccounts as $pAcc): ?>
+                            <option value="<?= $pAcc['id'] ?>" data-tag="<?= htmlspecialchars($pAcc['system_tag'] ?? '') ?>" <?= ($pAcc['system_tag'] === 'bank') ? 'selected' : '' ?>>
+                                <?= htmlspecialchars($pAcc['code']) ?> - <?= htmlspecialchars($pAcc['name']) ?>
+                            </option>
+                        <?php endforeach; ?>
                     </select>
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label small fw-semibold">Cheque / Ref #</label>
-                    <input type="text" class="form-control form-control-sm" name="reference_no" placeholder="e.g. CHQ-99182">
+                    <label class="form-label small fw-semibold">Payment Method <span class="text-danger">*</span></label>
+                    <select class="form-select form-select-sm" name="payment_method" id="supp_payment_method" onchange="syncSupplierPaymentAccount(this)">
+                        <?php foreach ($paymentMethods as $pm): ?>
+                            <option value="<?= $pm['code'] ?>" data-account="<?= $pm['account_id'] ?>" <?= ($pm['code'] === 'bank_transfer') ? 'selected' : '' ?>>
+                                <?= htmlspecialchars($pm['name']) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
                 </div>
                 <div class="col-md-3">
                     <label class="form-label small fw-semibold">Payment Date</label>
                     <input type="date" class="form-control form-control-sm" name="payment_date" value="<?= date('Y-m-d') ?>">
                 </div>
+                <div class="col-md-4">
+                    <label class="form-label small fw-semibold">Cheque / Txn Ref #</label>
+                    <input type="text" class="form-control form-control-sm" name="reference_no" placeholder="e.g. CHQ-99182 / TRF-8821">
+                </div>
+                <div class="col-md-8">
+                    <label class="form-label small fw-semibold">Remarks / Payment Memo</label>
+                    <input type="text" class="form-control form-control-sm" name="notes" placeholder="e.g. Cleared bill against Invoice # INV-1049">
+                </div>
                 <div class="col-12 mt-2">
-                    <button type="submit" class="btn btn-success btn-sm px-3">Confirm Payment & Post Journal</button>
+                    <button type="submit" class="btn btn-success btn-sm px-3 shadow-sm fw-semibold">
+                        <i class="bi bi-check2-circle me-1"></i> Confirm Payment & Post Journal
+                    </button>
                     <button type="button" class="btn btn-light border btn-sm ms-2" data-confirm-cancel data-confirm-target="panel-supplier-payment">Cancel</button>
                 </div>
             </div>
@@ -366,6 +419,20 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
 </div>
 
 <script>
+function syncSupplierPaymentAccount(sel) {
+    const selectedOpt = sel.options[sel.selectedIndex];
+    const defaultAccId = selectedOpt.getAttribute('data-account');
+    const accSelect = document.getElementById('supp_payment_account');
+    if (defaultAccId && accSelect) {
+        for (let i = 0; i < accSelect.options.length; i++) {
+            if (accSelect.options[i].value === defaultAccId) {
+                accSelect.selectedIndex = i;
+                break;
+            }
+        }
+    }
+}
+
 function shareSupplierWhatsApp() {
     const supp = "<?= addslashes(htmlspecialchars($supplier['name'])) ?>";
     const startDate = "<?= formatDate($startDate) ?>";

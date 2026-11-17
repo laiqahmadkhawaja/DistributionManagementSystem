@@ -44,6 +44,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['disburse_period_id'])
             // 3. Post Double-Entry Journal Entry for Payroll Disbursement
             $salariesAcc = getSystemAccount($pdo, 'salaries') ?: ['id' => 20];
             $creditAcc = ($payMethod === 'bank') ? getSystemAccount($pdo, 'bank') : getSystemAccount($pdo, 'cash');
+            $paymentAccountId = (int)($_POST['payment_account_id'] ?? 0);
+            if ($paymentAccountId > 0) {
+                $accStmt = $pdo->prepare("SELECT id, name, code FROM `chart_of_accounts` WHERE id = ? AND is_active = 1");
+                $accStmt->execute([$paymentAccountId]);
+                $customAcc = $accStmt->fetch();
+                if ($customAcc) {
+                    $creditAcc = $customAcc;
+                }
+            }
 
             $entryNumber = generateDocNumber($pdo, 'journal_entries', 'entry_number', 'JE-PAY-');
             $jeStmt = $pdo->prepare("

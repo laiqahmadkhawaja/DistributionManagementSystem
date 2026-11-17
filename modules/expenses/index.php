@@ -17,6 +17,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['record_expense'])) {
 
     $categoryId = (int)($_POST['category_id'] ?? 0);
     $amount = (float)($_POST['amount'] ?? 0.00);
+    $paymentAccountId = (int)($_POST['payment_account_id'] ?? 0);
     $paymentMethod = sanitize($_POST['payment_method'] ?? 'cash');
     $expenseDate = $_POST['expense_date'] ?? date('Y-m-d');
     $referenceNo = sanitize($_POST['reference_no'] ?? '');
@@ -38,9 +39,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['record_expense'])) {
             throw new Exception("Invalid expense category.");
         }
 
-        // Determine Payment Account: Cash in Hand vs Bank Account
-        $payAccTag = ($paymentMethod === 'cash') ? 'cash' : 'bank';
-        $payAcc = getSystemAccount($pdo, $payAccTag);
+        // Validate or fallback payment account
+        if ($paymentAccountId <= 0) {
+            $payAccTag = ($paymentMethod === 'cash') ? 'cash' : 'bank';
+            $defaultAcc = getSystemAccount($pdo, $payAccTag);
+            $paymentAccountId = $defaultAcc ? (int)$defaultAcc['id'] : 2;
+        }
+
+        // Verify account exists and is active asset
+        $accStmt = $pdo->prepare("SELECT id, name, code FROM `chart_of_accounts` WHERE id = ? AND is_active = 1");
+        $accStmt->execute([$paymentAccountId]);
+        $payAcc = $accStmt->fetch();
+        if (!$payAcc) {
+            throw new Exception("Invalid disbursing cash/bank account selected.");
+        }
 
         $expenseNumber = generateDocNumber($pdo, 'expenses', 'expense_number', 'EXP-');
 
@@ -53,20 +65,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['record_expense'])) {
         ");
         $expStmt->execute([
             $expenseNumber, $categoryId, $expenseDate, $amount,
-            $payAcc['id'], $paymentMethod, $referenceNo, $description,
+            $paymentAccountId, $paymentMethod, $referenceNo, $description,
             $currentUser['id'], $currentUser['id']
         ]);
         $expenseId = (int)$pdo->lastInsertId();
 
         // Critical Double-Entry Accounting Rule:
         // Debit: Expense Account (Salaries, Fuel, Rent, etc.)
-        // Credit: Cash / Bank
-        postExpenseAccounting($pdo, $expenseId, $expenseNumber, $cat['account_id'], $payAcc['id'], $amount, $description, $currentUser['id']);
+        // Credit: Cash / Bank (Selected Payment Account)
+        postExpenseAccounting($pdo, $expenseId, $expenseNumber, $cat['account_id'], $paymentAccountId, $amount, $description, $currentUser['id']);
 
-        logAudit($pdo, 'expenses', $expenseId, 'create_expense', null, ['number' => $expenseNumber, 'amount' => $amount, 'category' => $cat['name']]);
+        logAudit($pdo, 'expenses', $expenseId, 'create_expense', null, [
+            'number' => $expenseNumber, 
+            'amount' => $amount, 
+            'category' => $cat['name'],
+            'account' => "{$payAcc['code']} - {$payAcc['name']}"
+        ]);
         $pdo->commit();
 
-        setFlashMessage('success', "Expense {$expenseNumber} of Rs. " . number_format($amount, 2) . " posted to financial accounts!");
+        setFlashMessage('success', "Expense {$expenseNumber} of Rs. " . number_format($amount, 2) . " disbursed from {$payAcc['name']} posted to financial accounts!");
         redirect(BASE_URL . '/modules/expenses/index.php?tab=vouchers');
 
     } catch (Exception $e) {
@@ -194,11 +211,24 @@ if (!in_array($activeTab, ['vouchers', 'categories'])) {
     $activeTab = 'vouchers';
 }
 
+// Available Cash & Bank Accounts for Expense Disbursement
+$paymentAccounts = $pdo->query("
+    SELECT id, code, name, system_tag 
+    FROM `chart_of_accounts` 
+    WHERE is_active = 1 
+      AND group_type = 'Asset' 
+      AND (system_tag IN ('cash', 'bank') OR parent_id = 1) 
+      AND (system_tag IS NULL OR system_tag NOT IN ('receivables', 'inventory'))
+    ORDER BY code ASC
+")->fetchAll();
+
 // Fetch Expenses
 $expenses = $pdo->query("
-    SELECT e.*, ec.name as category_name, u.full_name as enterer_name
+    SELECT e.*, ec.name as category_name, u.full_name as enterer_name,
+           coa_pay.code as pay_account_code, coa_pay.name as pay_account_name
     FROM `expenses` e
     JOIN `expense_categories` ec ON e.category_id = ec.id
+    LEFT JOIN `chart_of_accounts` coa_pay ON e.payment_account_id = coa_pay.id
     LEFT JOIN `users` u ON e.entered_by = u.id
     ORDER BY e.id DESC
     LIMIT 100
@@ -314,21 +344,33 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
                             <input type="number" class="form-control form-control-sm text-end fw-bold" name="amount" step="0.01" required placeholder="0.00">
                         </div>
                         <div class="col-md-3">
-                            <label class="form-label small fw-semibold">Disbursed From Account</label>
-                            <select class="form-select form-select-sm" name="payment_method">
-                                <option value="cash">Cash in Hand</option>
-                                <option value="bank">Bank Account</option>
+                            <label class="form-label small fw-semibold">Disbursing Account <span class="text-danger">*</span></label>
+                            <select class="form-select form-select-sm fw-semibold" name="payment_account_id" id="exp_payment_account" required>
+                                <?php foreach ($paymentAccounts as $pAcc): ?>
+                                    <option value="<?= $pAcc['id'] ?>" data-tag="<?= htmlspecialchars($pAcc['system_tag'] ?? '') ?>" <?= ($pAcc['system_tag'] === 'cash') ? 'selected' : '' ?>>
+                                        <?= htmlspecialchars($pAcc['code']) ?> - <?= htmlspecialchars($pAcc['name']) ?>
+                                    </option>
+                                <?php endforeach; ?>
                             </select>
                         </div>
                         <div class="col-md-2">
+                            <label class="form-label small fw-semibold">Payment Mode</label>
+                            <select class="form-select form-select-sm" name="payment_method" id="exp_payment_method" onchange="syncExpensePaymentAccount(this)">
+                                <option value="cash" data-tag="cash">Cash</option>
+                                <option value="bank_transfer" data-tag="bank">Bank Transfer</option>
+                                <option value="cheque" data-tag="bank">Cheque</option>
+                                <option value="online" data-tag="bank">Online / POS</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
                             <label class="form-label small fw-semibold">Expense Date</label>
                             <input type="date" class="form-control form-control-sm" name="expense_date" value="<?= date('Y-m-d') ?>">
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-md-3">
                             <label class="form-label small fw-semibold">Reference / Bill #</label>
                             <input type="text" class="form-control form-control-sm" name="reference_no" placeholder="e.g. BILL-998">
                         </div>
-                        <div class="col-md-8">
+                        <div class="col-md-6">
                             <label class="form-label small fw-semibold">Expense Narration / Description <span class="text-danger">*</span></label>
                             <input type="text" class="form-control form-control-sm" name="description" placeholder="e.g. Fuel for Delivery Van GAW-8821" required>
                         </div>
@@ -380,7 +422,12 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
                                         <td data-label="Date"><?= formatDate($exp['expense_date']) ?></td>
                                         <td data-label="Category"><span class="badge bg-light text-dark border"><?= htmlspecialchars($exp['category_name']) ?></span></td>
                                         <td data-label="Description"><?= htmlspecialchars($exp['description']) ?></td>
-                                        <td data-label="Paid Via"><?= ucfirst($exp['payment_method']) ?></td>
+                                        <td data-label="Paid Via">
+                                            <span class="badge bg-light text-dark border"><?= ucfirst(htmlspecialchars(str_replace('_', ' ', $exp['payment_method']))) ?></span>
+                                            <?php if (!empty($exp['pay_account_name'])): ?>
+                                                <small class="d-block text-muted" style="font-size: 0.72rem;"><?= htmlspecialchars($exp['pay_account_code'] . ' - ' . $exp['pay_account_name']) ?></small>
+                                            <?php endif; ?>
+                                        </td>
                                         <td data-label="Amount" class="text-end fw-bold text-danger"><?= formatMoney($exp['amount']) ?></td>
                                         <td data-label="By"><small class="text-muted"><?= htmlspecialchars($exp['enterer_name'] ?? 'System') ?></small></td>
                                     </tr>
@@ -591,6 +638,21 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
 </div>
 
 <script>
+function syncExpensePaymentAccount(sel) {
+    const selectedOpt = sel.options[sel.selectedIndex];
+    const targetTag = selectedOpt.getAttribute('data-tag');
+    const accSelect = document.getElementById('exp_payment_account');
+    if (targetTag && accSelect) {
+        for (let i = 0; i < accSelect.options.length; i++) {
+            const optTag = accSelect.options[i].getAttribute('data-tag');
+            if (optTag === targetTag) {
+                accSelect.selectedIndex = i;
+                break;
+            }
+        }
+    }
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     const catPanel = document.getElementById('panel-category-form');
     const toggleBtn = document.getElementById('btn-toggle-add-cat');
