@@ -326,6 +326,12 @@ $currUser = getCurrentUser();
         <small class="text-muted">Item Profitability, Booker Performance, Territory Sales & Recovery, Driver Custody</small>
     </div>
     <div class="d-flex flex-wrap gap-2 d-print-none">
+        <a href="<?= BASE_URL ?>/modules/reports/parties_credit.php" target="_blank" class="btn btn-sm btn-info text-dark fw-bold btn-touch shadow-sm">
+            <i class="bi bi-person-lines-fill me-1"></i> Parties Credit
+        </a>
+        <a href="<?= BASE_URL ?>/modules/reports/daily_sale_summary.php" target="_blank" class="btn btn-sm btn-warning text-dark fw-bold btn-touch shadow-sm">
+            <i class="bi bi-calendar-check me-1"></i> Daily Sale Macro
+        </a>
         <button type="button" class="btn btn-sm btn-success btn-touch shadow-sm" onclick="exportTableToCSV('reportTable', 'DMS_Report_<?= $reportType ?>_<?= date('Ymd') ?>');">
             <i class="bi bi-file-earmark-excel me-1"></i> Export Excel (.csv)
         </button>

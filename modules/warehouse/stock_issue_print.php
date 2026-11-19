@@ -52,10 +52,11 @@ if ($deliveryManId > 0) {
 
 $whereSql = implode(' AND ', $whereClauses);
 
-// Query consolidated items grouped by Area and Product
+// Query consolidated items grouped by Area/Company and Product
 $sql = "
     SELECT 
         a.name as area_name,
+        COALESCE(b.name, a.name) as company_name,
         p.id as product_id,
         p.name as product_name,
         p.code as product_code,
@@ -68,12 +69,13 @@ $sql = "
     FROM sales_order_items soi
     JOIN sales_orders so ON soi.sales_order_id = so.id
     JOIN products p ON soi.product_id = p.id
+    LEFT JOIN brands b ON p.brand_id = b.id
     JOIN areas a ON so.area_id = a.id
     LEFT JOIN units u ON soi.unit_id = u.id
     LEFT JOIN unit_conversions uc ON uc.product_id = p.id AND uc.from_unit_id = 2
     WHERE {$whereSql}
-    GROUP BY a.id, a.name, p.id, p.name, p.code, u.name, u.code, uc.multiplier
-    ORDER BY a.name ASC, p.name ASC
+    GROUP BY a.id, a.name, b.name, p.id, p.name, p.code, u.name, u.code, uc.multiplier
+    ORDER BY company_name ASC, p.name ASC
 ";
 $stmt = $pdo->prepare($sql);
 $stmt->execute($params);
@@ -334,7 +336,7 @@ $formNumber = 'SIS-' . date('Ymd', strtotime($date)) . ($bookerId ? "-B{$bookerI
         <table class="stock-table">
             <thead>
                 <tr class="head-yellow">
-                    <th rowspan="2" style="width: 14%;">Area</th>
+                    <th rowspan="2" style="width: 14%;">Company</th>
                     <th rowspan="2" style="width: 32%;">Product</th>
                     <th rowspan="2" style="width: 7%;">Ctn Qty</th>
                     <th rowspan="2" style="width: 7%;">Pcs Qty</th>
@@ -392,7 +394,7 @@ $formNumber = 'SIS-' . date('Ymd', strtotime($date)) . ($bookerId ? "-B{$bookerI
                         }
                 ?>
                     <tr>
-                        <td class="text-left"><?= htmlspecialchars($it['area_name']) ?></td>
+                        <td class="text-left"><?= htmlspecialchars($it['company_name'] ?: $it['area_name']) ?></td>
                         <td class="text-left"><?= htmlspecialchars($prodDisplay) ?></td>
                         <td class="text-center font-bold"><?= $ctnVal > 0 ? $ctnVal : '' ?></td>
                         <td class="text-center"><?= $pcsVal > 0 ? $pcsVal : '' ?></td>

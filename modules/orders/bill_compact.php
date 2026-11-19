@@ -150,15 +150,17 @@ $billTerms = getSetting($pdo, 'bill_terms_conditions', 'Goods once sold are non-
         </div>
     </div>
 
-    <!-- Items Table -->
+    <!-- Items Table (Matching Muzzam Enterprises Exact Columns) -->
     <table class="bill-table">
         <thead>
             <tr>
-                <th class="col-product">Product</th>
-                <th class="col-carton">Carton</th>
-                <th class="col-qty">Qty</th>
-                <th class="col-price">Unit Price</th>
-                <th class="col-total">Total</th>
+                <th class="col-product" style="width: 34%;">Product</th>
+                <th class="col-carton" style="width: 10%;">Carton</th>
+                <th style="width: 12%;">Con. Pkng</th>
+                <th style="width: 12%;">Box / Packets</th>
+                <th class="col-qty" style="width: 8%;">Qty</th>
+                <th class="col-price" style="width: 11%;">Unit Prize</th>
+                <th class="col-total" style="width: 13%;">Total</th>
             </tr>
         </thead>
         <tbody>
@@ -185,10 +187,15 @@ $billTerms = getSetting($pdo, 'bill_terms_conditions', 'Goods once sold are non-
                     $looseVal = $qty;
                     $totLoose += $qty;
                 }
+
+                $conPkg = $multiplier > 1 ? '1*' . (int)$multiplier : '';
+                $boxType = ($ctnVal > 0) ? 'M' : '';
             ?>
             <tr>
                 <td class="col-product"><?= htmlspecialchars($it['product_name']) ?></td>
                 <td class="col-carton"><?= $ctnVal !== '' && $ctnVal > 0 ? $ctnVal : '' ?></td>
+                <td style="text-align: center;"><?= $conPkg ?></td>
+                <td style="text-align: center;"><?= $boxType ?></td>
                 <td class="col-qty"><?= $looseVal !== '' ? $looseVal : '' ?></td>
                 <td class="col-price"><?= number_format((float)$it['unit_price'], 0) ?></td>
                 <td class="col-total"><?= number_format((float)($it['line_total'] ?? ($it['quantity'] * $it['unit_price'])), 0) ?></td>
@@ -197,6 +204,8 @@ $billTerms = getSetting($pdo, 'bill_terms_conditions', 'Goods once sold are non-
             <tr class="total-row">
                 <td style="text-align: right; font-weight: 900;">Total</td>
                 <td class="col-carton"><?= $totCtn > 0 ? $totCtn : '' ?></td>
+                <td></td>
+                <td></td>
                 <td class="col-qty"><?= $totLoose > 0 ? $totLoose : '' ?></td>
                 <td class="col-price">-</td>
                 <td class="col-total"><?= number_format((float)$order['grand_total'], 0) ?></td>

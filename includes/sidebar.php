@@ -384,6 +384,16 @@ if (!$anySectionActive) {
         <div class="collapse <?= $isAdminActive ? 'show' : '' ?>" id="secAdmin">
             <ul class="nav flex-column mb-2">
                 <li class="nav-item">
+                    <a class="nav-link <?= $isPageActive('modules/reports/parties_credit.php') ? 'active' : '' ?>" href="<?= BASE_URL ?>/modules/reports/parties_credit.php" target="_blank">
+                        <i class="bi bi-person-lines-fill text-info"></i> Parties Credit (Market)
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link <?= $isPageActive('modules/reports/daily_sale_summary.php') ? 'active' : '' ?>" href="<?= BASE_URL ?>/modules/reports/daily_sale_summary.php" target="_blank">
+                        <i class="bi bi-calendar-check text-warning"></i> Daily Sale Macro Summary
+                    </a>
+                </li>
+                <li class="nav-item">
                     <a class="nav-link <?= $isPageActive('modules/reports/daily_closing.php') ? 'active' : '' ?>" href="<?= BASE_URL ?>/modules/reports/daily_closing.php">
                         <i class="bi bi-safe2"></i> Daily Day Closing
                     </a>
