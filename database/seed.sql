@@ -18,7 +18,13 @@ INSERT INTO `settings` (`setting_key`, `setting_value`, `description`) VALUES
 ('stock_deduction_point', 'dispatch', 'Stock deduction event (dispatch or delivery)'),
 ('inventory_costing_method', 'WAC', 'Weighted Average Costing'),
 ('default_credit_limit', '50000', 'Default credit limit for new retail shops'),
-('offline_sync_enabled', '1', 'Allow field workers offline storage and auto-sync')
+('offline_sync_enabled', '1', 'Allow field workers offline storage and auto-sync'),
+('system_operational_mode', 'hybrid', 'System Operational Mode: traditional (Desktop/Paper-Assisted), app_driven (Mobile Apps), hybrid (All options active)'),
+('batch_bills_per_a4', '2', 'Number of commercial sales bills printed per A4 page (2 for half-sheet / A5 size)'),
+('bill_terms_conditions', 'Goods once sold are non-returnable without prior distributor authorization.', 'Sales Bill & Invoice Written Terms of Supply'),
+('gatepass_security_directive', 'Strict outward vehicle gate clearance check before exiting premises.', 'Warehouse Outward Gate Pass Security Clearance Directive'),
+('route_assignment_cadence', 'weekly', 'Territory Route & Area Assignment Cadence: weekly, daily, monthly, fixed'),
+('route_coverage_tracking', '1', 'Shop Visit & Booking Progress Coverage Tracking: 1 (Enabled) or 0 (Disabled)')
 ON DUPLICATE KEY UPDATE `setting_value`=VALUES(`setting_value`);
 
 -- 3. Roles
