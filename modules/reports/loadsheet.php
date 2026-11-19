@@ -292,6 +292,9 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
             <small class="text-muted">Consolidated vehicle loading summary & booker order delivery dispatch sheet</small>
         </div>
         <div class="d-flex flex-wrap align-items-center gap-2">
+            <a href="<?= BASE_URL ?>/modules/warehouse/stock_issue_print.php?date=<?= $date ?>&booker_id=<?= $bookerId ?>&delivery_man_id=<?= $deliveryManId ?>&area_id=<?= $areaId ?>" target="_blank" class="btn btn-sm btn-warning text-dark fw-bold">
+                <i class="bi bi-file-earmark-spreadsheet me-1"></i> Stock Issue Summary
+            </a>
             <a href="<?= BASE_URL ?>/modules/reports/daily_closing.php" class="btn btn-sm btn-outline-dark">
                 <i class="bi bi-clock-history me-1"></i> Day Closing
             </a>

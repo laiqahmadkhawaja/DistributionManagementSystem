@@ -166,9 +166,14 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
                                     <?= formatMoney($sup['current_balance']) ?>
                                 </td>
                                 <td data-label="Action" class="text-end">
-                                    <a href="<?= BASE_URL ?>/modules/suppliers/ledger.php?id=<?= $sup['id'] ?>" class="btn btn-sm btn-outline-primary">
-                                        <i class="bi bi-journal-text me-1"></i> Ledger
-                                    </a>
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="<?= BASE_URL ?>/modules/suppliers/view.php?id=<?= $sup['id'] ?>" class="btn btn-primary" title="View 360 Supplier Profile">
+                                            <i class="bi bi-building me-1"></i> Profile
+                                        </a>
+                                        <a href="<?= BASE_URL ?>/modules/suppliers/ledger.php?id=<?= $sup['id'] ?>" class="btn btn-outline-secondary">
+                                            <i class="bi bi-journal-text me-1"></i> Ledger
+                                        </a>
+                                    </div>
                                 </td>
                             </tr>
                         <?php endforeach; ?>

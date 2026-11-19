@@ -155,6 +155,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_purchase_policy'
     }
 }
 
+// Handle Distribution Operational Mode POST
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_operational_mode'])) {
+    requirePermission('settings', 'edit');
+
+    $opMode = sanitize($_POST['system_operational_mode'] ?? 'traditional');
+    if (!in_array($opMode, ['traditional', 'app_driven', 'hybrid'])) {
+        $opMode = 'traditional';
+    }
+    $batchBillsPerA4 = (int)($_POST['batch_bills_per_a4'] ?? 2);
+    if (!in_array($batchBillsPerA4, [1, 2, 3])) {
+        $batchBillsPerA4 = 2;
+    }
+
+    try {
+        $pdo->beginTransaction();
+        $upsertSetting = $pdo->prepare("
+            INSERT INTO `settings` (`setting_key`, `setting_value`, `description`, `updated_at`)
+            VALUES (?, ?, ?, NOW())
+            ON DUPLICATE KEY UPDATE `setting_value` = VALUES(`setting_value`), `updated_at` = NOW()
+        ");
+        $upsertSetting->execute(['system_operational_mode', $opMode, 'Distribution Engine Operational Mode: traditional, app_driven, or hybrid']);
+        $upsertSetting->execute(['batch_bills_per_a4', (string)$batchBillsPerA4, 'Number of customer sales bills to format per A4 portrait page for batch printing']);
+        $pdo->commit();
+
+        logAudit($pdo, 'settings', 1, 'update_operational_mode', null, ['mode' => $opMode, 'bills_per_a4' => $batchBillsPerA4]);
+        setFlashMessage('success', 'Operational mode & distribution workflow updated successfully.');
+        redirect(BASE_URL . '/modules/settings/index.php?tab=opmode');
+
+    } catch (Exception $e) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        setFlashMessage('error', 'Error updating operational mode: ' . $e->getMessage());
+        redirect(BASE_URL . '/modules/settings/index.php?tab=opmode');
+    }
+}
+
 // Handle RBAC Permission Matrix Update POST
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_permissions'])) {
     requirePermission('settings', 'edit');
@@ -220,6 +257,10 @@ $purchaseAccounts = $pdo->query("
     ORDER BY code ASC
 ")->fetchAll();
 
+// Distribution Operational Workflow Mode
+$systemOpMode = getSetting($pdo, 'system_operational_mode', 'traditional');
+$batchBillsPerA4Val = (int)getSetting($pdo, 'batch_bills_per_a4', '2');
+
 $pageTitle = 'Settings & RBAC Security';
 require_once dirname(__DIR__, 2) . '/includes/header.php';
 ?>
@@ -258,6 +299,11 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
     <li class="nav-item">
         <button class="nav-link <?= $activeTab === 'purchases' ? 'active' : '' ?> fw-semibold" id="purchases-tab" data-bs-toggle="pill" data-bs-target="#purchases-pane" type="button">
             <i class="bi bi-cart-check me-1"></i> Procurement Policy
+        </button>
+    </li>
+    <li class="nav-item">
+        <button class="nav-link <?= $activeTab === 'opmode' ? 'active' : '' ?> fw-semibold" id="opmode-tab" data-bs-toggle="pill" data-bs-target="#opmode-pane" type="button">
+            <i class="bi bi-toggles me-1"></i> Distribution Workflow Mode
         </button>
     </li>
     <li class="nav-item">
@@ -618,6 +664,93 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
                 </div>
             </div>
         </form>
+    </div>
+
+    <!-- Distribution Operational Workflow Mode -->
+    <div class="tab-pane fade <?= $activeTab === 'opmode' ? 'show active' : '' ?>" id="opmode-pane">
+        <div class="card border-0 shadow-sm rounded-3" style="max-width: 860px;">
+            <div class="card-body p-4">
+                <div class="d-flex align-items-center gap-2 mb-3">
+                    <span class="badge bg-primary-subtle text-primary p-2 fs-5 rounded-3"><i class="bi bi-toggles"></i></span>
+                    <div>
+                        <h5 class="fw-bold mb-0 text-dark">Distribution Operational Workflow Mode</h5>
+                        <small class="text-muted">Configure whether DMS runs on traditional high-speed back-office desktop workflows, mobile apps, or hybrid</small>
+                    </div>
+                </div>
+
+                <form method="POST" action="<?= BASE_URL ?>/modules/settings/index.php?tab=opmode">
+                    <?= getCsrfField() ?>
+                    <input type="hidden" name="save_operational_mode" value="1">
+
+                    <div class="mb-4">
+                        <label class="form-label small fw-bold text-dark d-flex align-items-center">
+                            <i class="bi bi-diagram-3-fill text-primary me-2"></i>Primary System Operational Mode
+                        </label>
+                        <div class="row g-3">
+                            <div class="col-12 col-md-4">
+                                <label class="card h-100 p-3 border-2 cursor-pointer <?= $systemOpMode === 'traditional' ? 'border-primary bg-primary-subtle text-primary' : 'border-light-subtle' ?>">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="system_operational_mode" value="traditional" <?= $systemOpMode === 'traditional' ? 'checked' : '' ?>>
+                                        <div class="fw-bold fs-6 text-dark mt-1">1. Traditional Desktop DMS</div>
+                                    </div>
+                                    <small class="text-muted mt-2 d-block">
+                                        Tailored for non-tech field staff. Orders entered via rapid desktop matrix, 2-per-page A4 bills, paper run sheets & fast end-of-day grid reconciliation.
+                                    </small>
+                                </label>
+                            </div>
+                            <div class="col-12 col-md-4">
+                                <label class="card h-100 p-3 border-2 cursor-pointer <?= $systemOpMode === 'hybrid' ? 'border-primary bg-primary-subtle text-primary' : 'border-light-subtle' ?>">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="system_operational_mode" value="hybrid" <?= $systemOpMode === 'hybrid' ? 'checked' : '' ?>>
+                                        <div class="fw-bold fs-6 text-dark mt-1">2. Hybrid Dual-Mode (Recommended)</div>
+                                    </div>
+                                    <small class="text-muted mt-2 d-block">
+                                        Both traditional desktop speed tools (Excel import, batch booking, paper sheets) AND mobile field apps active concurrently.
+                                    </small>
+                                </label>
+                            </div>
+                            <div class="col-12 col-md-4">
+                                <label class="card h-100 p-3 border-2 cursor-pointer <?= $systemOpMode === 'app_driven' ? 'border-primary bg-primary-subtle text-primary' : 'border-light-subtle' ?>">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="system_operational_mode" value="app_driven" <?= $systemOpMode === 'app_driven' ? 'checked' : '' ?>>
+                                        <div class="fw-bold fs-6 text-dark mt-1">3. Mobile App Automated</div>
+                                    </div>
+                                    <small class="text-muted mt-2 d-block">
+                                        Digital-only workflow with live field booking app, GPS tracking, and digital delivery confirmations.
+                                    </small>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label small fw-bold text-dark d-flex align-items-center">
+                            <i class="bi bi-printer-fill text-primary me-2"></i>Sales Bill Batch Print Layout (A4 Portrait)
+                        </label>
+                        <select class="form-select" name="batch_bills_per_a4">
+                            <option value="2" <?= $batchBillsPerA4Val === 2 ? 'selected' : '' ?>>
+                                2 Bills per A4 Portrait Sheet (Recommended FMCG Half-Sheet Cut)
+                            </option>
+                            <option value="1" <?= $batchBillsPerA4Val === 1 ? 'selected' : '' ?>>
+                                1 Bill per A4 Sheet (Full Page Invoices)
+                            </option>
+                            <option value="3" <?= $batchBillsPerA4Val === 3 ? 'selected' : '' ?>>
+                                3 Bills per A4 Sheet (Ultra-compact continuous receipt format)
+                            </option>
+                        </select>
+                        <small class="text-muted mt-1 d-block">
+                            Controls the CSS print layout formatting when batch printing customer invoices from the Sales Orders and Load Sheet centers.
+                        </small>
+                    </div>
+
+                    <div class="mt-4 pt-2 border-top d-flex justify-content-end">
+                        <button type="submit" class="btn btn-primary px-4 fw-semibold shadow-sm">
+                            <i class="bi bi-save me-1"></i> Save Workflow Configuration
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
     </div>
 </div>
 

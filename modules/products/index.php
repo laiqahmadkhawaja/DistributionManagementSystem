@@ -123,6 +123,11 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
         <small class="text-muted">Multi-Tier Pricing: Retail, Wholesale, Trade & Minimum Safe Price</small>
     </div>
     <div class="d-flex flex-wrap gap-2">
+        <?php if (hasPermission('products', 'create')): ?>
+            <a href="<?= BASE_URL ?>/modules/products/import.php" class="btn btn-outline-success btn-touch shadow-sm">
+                <i class="bi bi-file-earmark-excel me-1"></i> Import Excel / CSV
+            </a>
+        <?php endif; ?>
         <a href="<?= BASE_URL ?>/modules/products/categories.php" class="btn btn-outline-primary btn-touch">
             <i class="bi bi-folder2-open me-1"></i> Manage Categories (<?= $totalCategoriesCount ?>)
         </a>

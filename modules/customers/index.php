@@ -67,7 +67,10 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
         <h4 class="fw-bold mb-0 text-dark"><i class="bi bi-shop text-primary me-2"></i>Retail Customers Directory</h4>
         <small class="text-muted">Registered Shops, Credit Balances & Route Assignments</small>
     </div>
-    <div class="d-flex gap-2">
+    <div class="d-flex flex-wrap gap-2">
+        <a href="<?= BASE_URL ?>/modules/customers/import.php" class="btn btn-outline-success btn-touch shadow-sm">
+            <i class="bi bi-file-earmark-excel me-1"></i> Import Shops (Excel)
+        </a>
         <a href="<?= BASE_URL ?>/modules/customers/create.php" class="btn btn-primary btn-touch shadow-sm">
             <i class="bi bi-plus-circle me-1"></i> Register New Shop
         </a>
@@ -123,7 +126,7 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
                         <?php foreach ($customers as $c): ?>
                             <tr>
                                 <td data-label="Shop">
-                                    <a href="<?= BASE_URL ?>/modules/customers/ledger.php?id=<?= $c['id'] ?>" class="fw-bold text-primary text-decoration-none">
+                                    <a href="<?= BASE_URL ?>/modules/customers/view.php?id=<?= $c['id'] ?>" class="fw-bold text-primary text-decoration-none">
                                         <?= htmlspecialchars($c['shop_name']) ?>
                                     </a>
                                     <div class="text-muted" style="font-size: 0.72rem;"><?= htmlspecialchars($c['code']) ?></div>
@@ -147,10 +150,13 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
                                 </td>
                                 <td data-label="Action" class="text-end">
                                     <div class="btn-group btn-group-sm">
+                                        <a href="<?= BASE_URL ?>/modules/customers/view.php?id=<?= $c['id'] ?>" class="btn btn-primary" title="View 360 Customer Profile">
+                                            <i class="bi bi-person-badge me-1"></i> Profile
+                                        </a>
                                         <a href="<?= BASE_URL ?>/modules/payments/recovery.php?customer_id=<?= $c['id'] ?>" class="btn btn-outline-success" title="Record Payment Recovery">
                                             <i class="bi bi-cash-coin me-1"></i> Recover
                                         </a>
-                                        <a href="<?= BASE_URL ?>/modules/customers/ledger.php?id=<?= $c['id'] ?>" class="btn btn-outline-primary" title="View Customer Ledger">
+                                        <a href="<?= BASE_URL ?>/modules/customers/ledger.php?id=<?= $c['id'] ?>" class="btn btn-outline-secondary" title="View Customer Ledger">
                                             <i class="bi bi-journal-text me-1"></i> Ledger
                                         </a>
                                     </div>

@@ -77,6 +77,12 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
         <small class="text-muted">Manage, Approve, Dispatch and Track Customer Orders</small>
     </div>
     <div class="d-flex gap-2">
+        <a href="<?= BASE_URL ?>/modules/orders/print_batch.php" class="btn btn-outline-dark btn-touch shadow-sm" target="_blank">
+            <i class="bi bi-printer me-1"></i> Batch Bills (2/A4)
+        </a>
+        <a href="<?= BASE_URL ?>/modules/orders/quick_booking.php" class="btn btn-warning text-dark fw-bold btn-touch shadow-sm">
+            <i class="bi bi-lightning-charge me-1"></i> Quick Booking
+        </a>
         <a href="<?= BASE_URL ?>/modules/reports/loadsheet.php" class="btn btn-outline-primary btn-touch shadow-sm">
             <i class="bi bi-truck-flatbed me-1"></i> Vehicle Load Sheet
         </a>
@@ -201,6 +207,9 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
                                 </td>
                                 <td data-label="Action" class="text-end">
                                     <div class="d-inline-flex gap-1">
+                                        <a href="<?= BASE_URL ?>/modules/orders/bill_compact.php?id=<?= $o['id'] ?>" target="_blank" class="btn btn-sm btn-outline-dark" title="Print Compact Bill (Half-Sheet / 2-per-A4)">
+                                            <i class="bi bi-printer"></i>
+                                        </a>
                                         <a href="<?= BASE_URL ?>/modules/orders/bill.php?id=<?= $o['id'] ?>" class="btn btn-sm btn-outline-success" title="View Customer Commercial Bill">
                                             <i class="bi bi-receipt me-1"></i> Bill
                                         </a>

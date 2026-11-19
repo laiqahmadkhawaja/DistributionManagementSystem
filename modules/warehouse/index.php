@@ -151,6 +151,9 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
         <small class="text-muted">Order Picking, Packing, Delivery Route Assignment & Stock Deduction</small>
     </div>
     <div class="d-flex gap-2">
+        <a href="<?= BASE_URL ?>/modules/warehouse/stock_issue_print.php" class="btn btn-sm btn-warning text-dark fw-bold shadow-sm btn-touch">
+            <i class="bi bi-file-earmark-spreadsheet me-1"></i> Stock Issue Summary
+        </a>
         <a href="<?= BASE_URL ?>/modules/reports/loadsheet.php" class="btn btn-sm btn-primary shadow-sm btn-touch">
             <i class="bi bi-truck-flatbed me-1"></i> Vehicle Load Sheet
         </a>

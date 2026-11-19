@@ -200,6 +200,12 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
                 <span class="badge bg-danger rounded-pill ms-1"><?= $driverCustodyQty ?></span>
             <?php endif; ?>
         </a>
+        <a href="<?= BASE_URL ?>/modules/delivery/sheet_print.php" class="btn btn-sm btn-outline-primary" target="_blank">
+            <i class="bi bi-file-earmark-spreadsheet me-1"></i> Delivery Run Sheet
+        </a>
+        <a href="<?= BASE_URL ?>/modules/delivery/sheet_reconcile.php" class="btn btn-sm btn-info text-dark fw-bold">
+            <i class="bi bi-ui-checks-grid me-1"></i> Reconcile Sheet
+        </a>
         <a href="<?= BASE_URL ?>/modules/payments/handover.php" class="btn btn-sm btn-warning text-dark fw-bold">
             <i class="bi bi-wallet2 me-1"></i> Cash Handover
         </a>
