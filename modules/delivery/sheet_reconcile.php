@@ -57,7 +57,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 
             // Fetch order and assignment details
             $stmt = $pdo->prepare("
-                SELECT so.*, da.id as assignment_id, da.dispatch_number, da.warehouse_id,
+                SELECT so.*, da.id as assignment_id, da.dispatch_number, da.warehouse_id, da.delivery_man_id,
                        c.id as customer_id, c.shop_name, c.current_balance
                 FROM sales_orders so
                 JOIN customers c ON so.customer_id = c.id
@@ -73,9 +73,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             }
 
             $orderAmount = (float)$order['grand_total'];
-            $assignmentId = (int)($order['assignment_id'] ?? 0);
+            $assignmentId = !empty($order['assignment_id']) ? (int)$order['assignment_id'] : null;
             $customerId = (int)$order['customer_id'];
-            $whId = (int)($order['warehouse_id'] ?? 1);
+            $whId = !empty($order['warehouse_id']) ? (int)$order['warehouse_id'] : ((int)$pdo->query("SELECT id FROM warehouses WHERE status = 'active' LIMIT 1")->fetchColumn() ?: 1);
+
+            // Robust collector resolution (foreign key must be a valid employee ID or NULL, never 0)
+            $collectorId = null;
+            if ($driverId > 0) {
+                $collectorId = $driverId;
+            } elseif (!empty($order['delivery_man_id']) && (int)$order['delivery_man_id'] > 0) {
+                $collectorId = (int)$order['delivery_man_id'];
+            } elseif (!empty($order['order_booker_id']) && (int)$order['order_booker_id'] > 0) {
+                $collectorId = (int)$order['order_booker_id'];
+            }
+
+            if ($collectorId !== null) {
+                $checkEmp = $pdo->prepare("SELECT id FROM employees WHERE id = ? LIMIT 1");
+                $checkEmp->execute([$collectorId]);
+                if (!$checkEmp->fetchColumn()) {
+                    $collectorId = null;
+                }
+            }
 
             // 1. Process Cash Received
             if ($cashAmt > 0) {
@@ -91,7 +109,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 $pStmt->execute([
                     $receiptNumber, $assignmentId, $customerId, $cashAmt,
                     ($cashMethod['id'] ?? 1), $cashAccountId, $reconcileDate,
-                    $driverId, "Daily Run Sheet Cash: Order #{$order['order_number']}", $currentUser['id']
+                    $collectorId, "Daily Run Sheet Cash: Order #{$order['order_number']}", $currentUser['id']
                 ]);
                 $paymentId = (int)$pdo->lastInsertId();
 
@@ -110,7 +128,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, 'quarantine', 'approved', 'in_vehicle_custody', ?, ?, NOW())
                 ");
                 $srStmt->execute([
-                    $srNumber, $customerId, $driverId, $assignmentId,
+                    $srNumber, $customerId, $collectorId, $assignmentId,
                     $whId, $reconcileDate, $returnAmt,
                     "Run Sheet Return on Order #{$order['order_number']}", $currentUser['id']
                 ]);
