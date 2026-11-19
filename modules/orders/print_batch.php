@@ -293,7 +293,7 @@ $billsPerA4 = (int)getSetting($pdo, 'batch_bills_per_a4', '2');
                         <td class="col-carton"><?= $ctnVal !== '' && $ctnVal > 0 ? $ctnVal : '' ?></td>
                         <td class="col-qty"><?= $looseVal !== '' ? $looseVal : '' ?></td>
                         <td class="col-price"><?= number_format((float)$it['unit_price'], 0) ?></td>
-                        <td class="col-total"><?= number_format((float)$it['total_price'], 0) ?></td>
+                        <td class="col-total"><?= number_format((float)($it['line_total'] ?? ($it['quantity'] * $it['unit_price'])), 0) ?></td>
                     </tr>
                     <?php endforeach; ?>
                     <tr class="total-row">

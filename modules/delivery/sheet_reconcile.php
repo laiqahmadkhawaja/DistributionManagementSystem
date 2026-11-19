@@ -331,7 +331,7 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
 
 <!-- Reconciliation Form -->
 <form method="POST" action="" id="reconcileForm">
-    <?= getCsrfInput() ?>
+    <?= getCsrfField() ?>
     <input type="hidden" name="action" value="reconcile_sheet">
     <input type="hidden" name="driver_id" value="<?= $deliveryManId ?>">
     <input type="hidden" name="reconcile_date" value="<?= htmlspecialchars($date) ?>">

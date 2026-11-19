@@ -32,7 +32,7 @@ if (!$supplier) {
 $poStmt = $pdo->prepare("
     SELECT po.*,
            (SELECT COUNT(*) FROM purchase_items WHERE purchase_order_id = po.id) as item_count,
-           (SELECT COALESCE(SUM(quantity), 0) FROM purchase_items WHERE purchase_order_id = po.id) as total_units
+           (SELECT COALESCE(SUM(order_qty), 0) FROM purchase_items WHERE purchase_order_id = po.id) as total_units
     FROM purchase_orders po
     WHERE po.supplier_id = ?
     ORDER BY po.po_date DESC, po.id DESC

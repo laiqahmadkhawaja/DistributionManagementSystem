@@ -326,7 +326,7 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
             </div>
         <?php else: ?>
             <form method="POST" action="" id="bookingForm">
-                <?= getCsrfInput() ?>
+                <?= getCsrfField() ?>
                 <input type="hidden" name="action" value="quick_save_order">
                 <input type="hidden" name="customer_id" value="<?= $currentCustomer['id'] ?>">
                 <input type="hidden" name="booker_id" value="<?= $selectedBookerId ?>">

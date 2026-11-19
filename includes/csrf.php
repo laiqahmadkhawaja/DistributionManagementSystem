@@ -52,3 +52,10 @@ function requireCsrfToken(): void {
 function validateCsrf(): void {
     requireCsrfToken();
 }
+
+/**
+ * Alias for getCsrfField()
+ */
+function getCsrfInput(): string {
+    return getCsrfField();
+}
