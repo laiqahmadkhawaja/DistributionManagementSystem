@@ -284,6 +284,9 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
         <small class="text-muted">High-speed POS product card entry with editable rates, discounts and live bill tray</small>
     </div>
     <div class="d-flex flex-wrap gap-2">
+        <a href="<?= BASE_URL ?>/modules/delivery/dispatch_van.php?date=<?= urlencode($selectedDate) ?>" class="btn btn-primary btn-sm fw-bold shadow-sm">
+            <i class="bi bi-truck me-1"></i> Van Loading &amp; Dispatch
+        </a>
         <a href="<?= BASE_URL ?>/modules/orders/print_batch.php?date=<?= urlencode($selectedDate) ?>" target="_blank" class="btn btn-outline-primary btn-sm">
             <i class="bi bi-printer me-1"></i> Print Batch Bills (A4/A5)
         </a>

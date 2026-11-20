@@ -21,6 +21,15 @@ if (!$canViewBill) {
 $pdo = getDatabaseConnection();
 $company = getCompanyInfo($pdo);
 $orderId = (int)($_GET['id'] ?? ($_GET['order_id'] ?? 0));
+if (!$orderId) {
+    if (!empty($_GET['delivery_id'])) {
+        $delId = (int)$_GET['delivery_id'];
+        $orderId = (int)$pdo->query("SELECT sales_order_id FROM delivery_assignments WHERE id = {$delId}")->fetchColumn();
+    } elseif (!empty($_GET['invoice_id'])) {
+        $invId = (int)$_GET['invoice_id'];
+        $orderId = (int)$pdo->query("SELECT sales_order_id FROM sales_invoices WHERE id = {$invId}")->fetchColumn();
+    }
+}
 
 if (!$orderId) {
     setFlashMessage('error', 'Invalid Bill request. Order identifier missing.');

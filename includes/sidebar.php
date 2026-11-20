@@ -135,6 +135,11 @@ if (!$anySectionActive) {
                 </a>
             </li>
             <li class="nav-item">
+                <a class="nav-link <?= $isPageActive('modules/delivery/dispatch_van.php') ? 'active' : '' ?>" href="<?= BASE_URL ?>/modules/delivery/dispatch_van.php">
+                    <i class="bi bi-truck text-primary"></i> <span>Daily Van Dispatch &amp; Assign</span>
+                </a>
+            </li>
+            <li class="nav-item">
                 <a class="nav-link <?= $isPageActive('modules/warehouse/stock_issue_print.php') ? 'active' : '' ?>" href="<?= BASE_URL ?>/modules/warehouse/stock_issue_print.php" target="_blank">
                     <i class="bi bi-truck text-primary"></i> <span>Master Load Form</span>
                 </a>
