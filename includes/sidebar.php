@@ -185,23 +185,19 @@ if (!$anySectionActive) {
         </a>
         <div class="collapse <?= $isSalesActive ? 'show' : '' ?>" id="secSales">
             <ul class="nav flex-column mb-2">
-                <?php if (hasPermission('orders', 'create') || $roleSlug === ROLE_ORDER_BOOKER || $roleSlug === ROLE_SALESMAN): ?>
-                <li class="nav-item">
-                    <a class="nav-link <?= $isPageActive('modules/orders/quick_booking.php') ? 'active' : '' ?>" href="<?= BASE_URL ?>/modules/orders/quick_booking.php">
-                        <i class="bi bi-lightning-charge-fill text-warning"></i> Quick Route Booking
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link <?= $isPageActive('modules/orders/book.php') ? 'active' : '' ?>" href="<?= BASE_URL ?>/modules/orders/book.php">
-                        <i class="bi bi-cart-plus-fill"></i> Order Booker App
-                    </a>
-                </li>
-                <?php endif; ?>
-
                 <?php if (hasPermission('customers', 'view')): ?>
                 <li class="nav-item">
                     <a class="nav-link <?= $isPageActive('modules/customers/') ? 'active' : '' ?>" href="<?= BASE_URL ?>/modules/customers/index.php">
                         <i class="bi bi-shop"></i> Retail Shops / Customers
+                    </a>
+                </li>
+                <?php endif; ?>
+
+                <?php if (hasPermission('orders', 'view')): ?>
+                <li class="nav-item">
+                    <a class="nav-link justify-content-between <?= ($isPageActive('modules/orders/') && !$isPageActive(['modules/orders/book.php', 'modules/orders/quick_booking.php'])) ? 'active' : '' ?>" href="<?= BASE_URL ?>/modules/orders/index.php">
+                        <span><i class="bi bi-card-checklist"></i> Sales Orders Register</span>
+                        <span class="badge bg-warning text-dark rounded-pill <?= $pendingOrdersCount > 0 ? 'pulse-badge' : 'd-none' ?>" id="badgePendingOrders"><?= $pendingOrdersCount ?></span>
                     </a>
                 </li>
                 <?php endif; ?>
@@ -214,40 +210,24 @@ if (!$anySectionActive) {
                 </li>
                 <?php endif; ?>
 
-                <?php if (hasPermission('orders', 'view')): ?>
-                <li class="nav-item">
-                    <a class="nav-link justify-content-between <?= ($isPageActive('modules/orders/') && !$isPageActive(['modules/orders/book.php', 'modules/orders/quick_booking.php'])) ? 'active' : '' ?>" href="<?= BASE_URL ?>/modules/orders/index.php">
-                        <span><i class="bi bi-card-checklist"></i> Sales Orders</span>
-                        <span class="badge bg-warning text-dark rounded-pill <?= $pendingOrdersCount > 0 ? 'pulse-badge' : 'd-none' ?>" id="badgePendingOrders"><?= $pendingOrdersCount ?></span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link <?= $isPageActive('modules/orders/print_batch.php') ? 'active' : '' ?>" href="<?= BASE_URL ?>/modules/orders/print_batch.php" target="_blank">
-                        <i class="bi bi-printer"></i> Batch Bills (2 per A4)
-                    </a>
-                </li>
-                <?php endif; ?>
-
                 <?php if (hasPermission('delivery', 'view') || $roleSlug === ROLE_DELIVERY_MAN): ?>
+                <li class="nav-item">
+                    <a class="nav-link <?= $isPageActive(['modules/delivery/return.php', 'modules/delivery/return_print.php']) ? 'active' : '' ?>" href="<?= BASE_URL ?>/modules/delivery/return.php">
+                        <i class="bi bi-box-arrow-in-left"></i> Shop Returns Entry
+                    </a>
+                </li>
                 <li class="nav-item">
                     <a class="nav-link justify-content-between <?= $isPageActive(['modules/delivery/index.php', 'modules/delivery/deliver.php']) ? 'active' : '' ?>" href="<?= BASE_URL ?>/modules/delivery/index.php">
                         <span><i class="bi bi-truck-flatbed"></i> Delivery Man App</span>
                         <span class="badge bg-danger rounded-pill <?= $pendingDeliveriesCount > 0 ? 'pulse-badge' : 'd-none' ?>" id="badgePendingDeliveries"><?= $pendingDeliveriesCount ?></span>
                     </a>
                 </li>
+                <?php endif; ?>
+
+                <?php if (hasPermission('orders', 'create') || $roleSlug === ROLE_ORDER_BOOKER || $roleSlug === ROLE_SALESMAN): ?>
                 <li class="nav-item">
-                    <a class="nav-link <?= $isPageActive('modules/delivery/sheet_print.php') ? 'active' : '' ?>" href="<?= BASE_URL ?>/modules/delivery/sheet_print.php" target="_blank">
-                        <i class="bi bi-file-earmark-spreadsheet"></i> Daily Run Sheet
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link <?= $isPageActive('modules/delivery/sheet_reconcile.php') ? 'active' : '' ?>" href="<?= BASE_URL ?>/modules/delivery/sheet_reconcile.php">
-                        <i class="bi bi-ui-checks-grid"></i> Reconcile Run Sheet
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link <?= $isPageActive(['modules/delivery/return.php', 'modules/delivery/return_print.php']) ? 'active' : '' ?>" href="<?= BASE_URL ?>/modules/delivery/return.php">
-                        <i class="bi bi-box-arrow-in-left"></i> Shop Returns Entry
+                    <a class="nav-link <?= $isPageActive('modules/orders/book.php') ? 'active' : '' ?>" href="<?= BASE_URL ?>/modules/orders/book.php">
+                        <i class="bi bi-cart-plus-fill"></i> Order Booker Mobile App
                     </a>
                 </li>
                 <?php endif; ?>
@@ -278,11 +258,6 @@ if (!$anySectionActive) {
                     <a class="nav-link justify-content-between <?= ($isPageActive('modules/warehouse/') && !$isPageActive(['modules/warehouse/stock_handover.php', 'modules/warehouse/stock_issue_print.php'])) ? 'active' : '' ?>" href="<?= BASE_URL ?>/modules/warehouse/index.php">
                         <span><i class="bi bi-box-seam"></i> Dispatch Challans</span>
                         <span class="badge bg-info text-dark rounded-pill <?= $readyDispatchCount > 0 ? 'pulse-badge' : 'd-none' ?>" id="badgeReadyDispatch"><?= $readyDispatchCount ?></span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link <?= $isPageActive('modules/warehouse/stock_issue_print.php') ? 'active' : '' ?>" href="<?= BASE_URL ?>/modules/warehouse/stock_issue_print.php" target="_blank">
-                        <i class="bi bi-file-earmark-spreadsheet"></i> Stock Issue Summary
                     </a>
                 </li>
                 <li class="nav-item">
@@ -432,11 +407,6 @@ if (!$anySectionActive) {
         </a>
         <div class="collapse <?= $isAdminActive ? 'show' : '' ?>" id="secAdmin">
             <ul class="nav flex-column mb-2">
-                <li class="nav-item">
-                    <a class="nav-link <?= $isPageActive('modules/reports/parties_credit.php') ? 'active' : '' ?>" href="<?= BASE_URL ?>/modules/reports/parties_credit.php" target="_blank">
-                        <i class="bi bi-person-lines-fill text-info"></i> Parties Credit (Market)
-                    </a>
-                </li>
                 <li class="nav-item">
                     <a class="nav-link <?= $isPageActive('modules/reports/daily_sale_summary.php') ? 'active' : '' ?>" href="<?= BASE_URL ?>/modules/reports/daily_sale_summary.php" target="_blank">
                         <i class="bi bi-calendar-check text-warning"></i> Daily Sale Macro Summary
