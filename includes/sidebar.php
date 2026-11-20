@@ -118,6 +118,55 @@ if (!$anySectionActive) {
         </ul>
 
         <!-- ==========================================
+             FMCG DISTRIBUTION DESK (Daily Workflow)
+             ========================================== -->
+        <div class="sidebar-heading px-3 pt-2 pb-1 text-uppercase text-xs fw-bold text-primary border-bottom mb-2" style="font-size: 0.72rem; letter-spacing: 0.5px;">
+            <i class="bi bi-box-seam me-1"></i> FMCG Distribution Desk
+        </div>
+        <ul class="nav flex-column mb-3">
+            <li class="nav-item">
+                <a class="nav-link <?= $isPageActive('modules/orders/quick_booking.php') ? 'active' : '' ?>" href="<?= BASE_URL ?>/modules/orders/quick_booking.php">
+                    <i class="bi bi-lightning-charge-fill text-warning"></i> <span>Daily Order Booking</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link <?= $isPageActive('modules/warehouse/stock_issue_print.php') ? 'active' : '' ?>" href="<?= BASE_URL ?>/modules/warehouse/stock_issue_print.php" target="_blank">
+                    <i class="bi bi-truck text-primary"></i> <span>Master Load Form</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link <?= $isPageActive('modules/orders/print_batch.php') ? 'active' : '' ?>" href="<?= BASE_URL ?>/modules/orders/print_batch.php" target="_blank">
+                    <i class="bi bi-printer-fill text-info"></i> <span>Print Batch Bills</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link <?= $isPageActive('modules/delivery/sheet_print.php') ? 'active' : '' ?>" href="<?= BASE_URL ?>/modules/delivery/sheet_print.php" target="_blank">
+                    <i class="bi bi-file-earmark-spreadsheet text-success"></i> <span>Daily Delivery Sheet</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link <?= $isPageActive('modules/delivery/sheet_reconcile.php') ? 'active' : '' ?>" href="<?= BASE_URL ?>/modules/delivery/sheet_reconcile.php">
+                    <i class="bi bi-cash-stack text-success"></i> <span>Evening Cash Reconcile</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link <?= $isPageActive('modules/reports/parties_credit.php') ? 'active' : '' ?>" href="<?= BASE_URL ?>/modules/reports/parties_credit.php">
+                    <i class="bi bi-journal-bookmark text-danger"></i> <span>Parties Credit (Udhaar)</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link <?= $isPageActive('modules/products/import.php') ? 'active' : '' ?>" href="<?= BASE_URL ?>/modules/products/import.php">
+                    <i class="bi bi-file-earmark-excel text-primary"></i> <span>Import Products (Excel)</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link <?= $isPageActive('modules/customers/import.php') ? 'active' : '' ?>" href="<?= BASE_URL ?>/modules/customers/import.php">
+                    <i class="bi bi-people-fill text-secondary"></i> <span>Import Shops & Balances</span>
+                </a>
+            </li>
+        </ul>
+
+        <!-- ==========================================
              SECTION 1: Field Sales & Distribution
              ========================================== -->
         <?php if (hasPermission('orders', 'view') || hasPermission('orders', 'create') || hasPermission('delivery', 'view') || hasPermission('customers', 'view') || in_array($roleSlug, [ROLE_ORDER_BOOKER, ROLE_SALESMAN, ROLE_DELIVERY_MAN, ROLE_ADMIN, ROLE_SUPER_ADMIN])): ?>

@@ -86,7 +86,10 @@ if (!empty($orderIds)) {
 }
 
 $billTerms = getSetting($pdo, 'bill_terms_conditions', 'Goods once sold are non-returnable without prior distributor authorization.');
-$billsPerA4 = (int)getSetting($pdo, 'batch_bills_per_a4', '2');
+$billsPerA4 = isset($_GET['per_page']) ? (int)$_GET['per_page'] : (int)getSetting($pdo, 'batch_bills_per_a4', '2');
+if (!in_array($billsPerA4, [1, 2])) {
+    $billsPerA4 = 2;
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -113,44 +116,48 @@ $billsPerA4 = (int)getSetting($pdo, 'batch_bills_per_a4', '2');
 
         .filter-form { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
         .filter-form select, .filter-form input { padding: 5px 8px; font-size: 8.5pt; border: 1px solid #cbd5e1; border-radius: 4px; }
-        .btn-action { padding: 6px 12px; font-size: 8.5pt; font-weight: bold; border-radius: 4px; cursor: pointer; border: none; text-decoration: none; }
-        .btn-primary { background: #2563eb; color: #fff; }
-        .btn-dark { background: #0f172a; color: #fff; }
+        .btn-action { padding: 6px 12px; font-size: 8.5pt; font-weight: bold; border-radius: 4px; cursor: pointer; border: 1px solid #cbd5e1; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; }
+        .btn-primary { background: #2563eb; color: #fff; border-color: #2563eb; }
+        .btn-dark { background: #0f172a; color: #fff; border-color: #0f172a; }
+        .btn-outline { background: #fff; color: #334155; }
+        .btn-outline:hover { background: #f1f5f9; }
 
         .sheet-wrapper { max-width: 190mm; margin: 0 auto; }
 
         .batch-bill-card {
             background: #fff;
             border: 1px solid #cbd5e1;
-            padding: 8px 12px;
+            padding: <?= $billsPerA4 === 1 ? '16px 20px' : '8px 12px' ?>;
             margin-bottom: 8mm;
-            min-height: 128mm;
+            min-height: <?= $billsPerA4 === 1 ? '260mm' : '128mm' ?>;
             position: relative;
             box-shadow: 0 1px 2px rgba(0,0,0,0.05);
         }
 
         .bill-header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 3px; margin-bottom: 5px; }
-        .comp-title { font-size: 12pt; font-weight: 900; text-transform: uppercase; }
+        .comp-title { font-size: <?= $billsPerA4 === 1 ? '15pt' : '12pt' ?>; font-weight: 900; text-transform: uppercase; }
         .comp-contact { font-size: 8.5pt; font-weight: bold; }
 
-        .meta-grid { display: table; width: 100%; margin-bottom: 4px; font-size: 9pt; }
+        .meta-grid { display: table; width: 100%; margin-bottom: 4px; font-size: <?= $billsPerA4 === 1 ? '10pt' : '9pt' ?>; }
         .meta-row { display: table-row; }
         .meta-col-left { display: table-cell; width: 60%; vertical-align: top; line-height: 1.25; }
         .meta-col-right { display: table-cell; width: 40%; vertical-align: top; text-align: right; line-height: 1.25; }
 
-        .bill-table { width: 100%; border-collapse: collapse; font-size: 9pt; margin-bottom: 5px; }
-        .bill-table th, .bill-table td { border: 1px solid #000; padding: 2.5px 5px; }
+        .bill-table { width: 100%; border-collapse: collapse; font-size: <?= $billsPerA4 === 1 ? '10pt' : '9pt' ?>; margin-bottom: 5px; }
+        .bill-table th, .bill-table td { border: 1px solid #000; padding: <?= $billsPerA4 === 1 ? '5px 8px' : '2.5px 5px' ?>; }
         .bill-table th { background-color: #f1f5f9; text-align: center; font-weight: bold; }
         .col-product { text-align: left; }
         .col-carton { width: 40px; text-align: center; }
+        .col-pkg { width: 60px; text-align: center; }
+        .col-box { width: 65px; text-align: center; }
         .col-qty { width: 40px; text-align: center; }
-        .col-price { width: 60px; text-align: right; }
-        .col-total { width: 70px; text-align: right; font-weight: bold; }
+        .col-price { width: 65px; text-align: right; }
+        .col-total { width: 75px; text-align: right; font-weight: bold; }
 
-        .total-row td { background-color: #ffff00; font-weight: bold; font-size: 9.5pt; }
+        .total-row td { background-color: #ffff00; font-weight: bold; font-size: <?= $billsPerA4 === 1 ? '11pt' : '9.5pt' ?>; }
 
-        .bill-footer { font-size: 7.5pt; display: flex; justify-content: space-between; align-items: flex-end; margin-top: 6px; }
-        .sign-box { border-top: 1px solid #000; width: 110px; text-align: center; padding-top: 2px; font-weight: bold; font-size: 7.5pt; }
+        .bill-footer { font-size: 8pt; display: flex; justify-content: space-between; align-items: flex-end; margin-top: <?= $billsPerA4 === 1 ? '20px' : '6px' ?>; }
+        .sign-box { border-top: 1px solid #000; width: 130px; text-align: center; padding-top: 3px; font-weight: bold; font-size: 8pt; }
 
         @media print {
             body { background: transparent; padding: 0; }
@@ -166,14 +173,16 @@ $billsPerA4 = (int)getSetting($pdo, 'batch_bills_per_a4', '2');
                 border: 1px solid #000;
                 box-shadow: none;
                 margin: 0 0 8mm 0;
-                height: 136mm;
-                max-height: 136mm;
                 overflow: hidden;
                 page-break-inside: avoid;
             }
 
             /* Exactly 2 Bills per A4 Portrait Sheet */
             <?php if ($billsPerA4 === 2): ?>
+            .batch-bill-card {
+                height: 136mm;
+                max-height: 136mm;
+            }
             .batch-bill-card:nth-child(2n) {
                 margin-bottom: 0;
                 page-break-after: always;
@@ -192,11 +201,18 @@ $billsPerA4 = (int)getSetting($pdo, 'batch_bills_per_a4', '2');
 
 <div class="no-print-bar">
     <div>
-        <h3 style="font-size: 11pt; font-weight: bold; margin-bottom: 2px;">Batch Print Sales Bills (2 per A4 Sheet)</h3>
+        <h3 style="font-size: 11pt; font-weight: bold; margin-bottom: 2px;">Batch Print Sales Bills (<?= $billsPerA4 === 1 ? '1 per Full A4' : '2 per A4 Sheet' ?>)</h3>
         <small style="color: #64748b;"><?= count($orders) ?> Customer Bills queued for printing</small>
     </div>
     
+    <div style="display: flex; align-items: center; gap: 6px;">
+        <span style="font-size: 8.5pt; font-weight: bold; color: #475569;">Format:</span>
+        <a href="?date=<?= urlencode($date) ?>&area_id=<?= $areaId ?>&booker_id=<?= $bookerId ?>&per_page=2" class="btn-action <?= $billsPerA4 === 2 ? 'btn-primary' : 'btn-outline' ?>">📑 2 Bills / A4 (A5)</a>
+        <a href="?date=<?= urlencode($date) ?>&area_id=<?= $areaId ?>&booker_id=<?= $bookerId ?>&per_page=1" class="btn-action <?= $billsPerA4 === 1 ? 'btn-primary' : 'btn-outline' ?>">📄 1 Bill / Full A4</a>
+    </div>
+
     <form method="GET" class="filter-form">
+        <input type="hidden" name="per_page" value="<?= $billsPerA4 ?>">
         <input type="date" name="date" value="<?= htmlspecialchars($date) ?>">
         <select name="area_id">
             <option value="">-- All Areas / Routes --</option>

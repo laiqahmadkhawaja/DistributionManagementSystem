@@ -82,14 +82,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['import_customers'])) 
     $insCustStmt = $pdo->prepare("
         INSERT INTO customers (
             `area_id`, `shop_name`, `owner_name`, `code`, `phone`, `whatsapp`,
-            `address`, `credit_limit`, `current_balance`, `status`, `created_at`
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', NOW())
+            `address`, `credit_limit`, `opening_balance`, `current_balance`, `status`, `created_at`
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', NOW())
     ");
 
     $updateCustStmt = $pdo->prepare("
         UPDATE customers 
         SET `area_id` = ?, `owner_name` = ?, `whatsapp` = ?, `address` = ?,
-            `credit_limit` = ?, `current_balance` = ?, `status` = 'active'
+            `credit_limit` = ?, `opening_balance` = ?, `current_balance` = ?, `status` = 'active'
         WHERE id = ?
     ");
 
@@ -142,14 +142,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['import_customers'])) 
             if ($existingId) {
                 $updateCustStmt->execute([
                     $areaId, $ownerName, $whatsapp, $address,
-                    $creditLimit, $openingBalance, (int)$existingId
+                    $creditLimit, $openingBalance, $openingBalance, (int)$existingId
                 ]);
                 $updated++;
             } else {
                 $code = 'CUST-' . strtoupper(substr(preg_replace('/[^a-zA-Z0-9]/', '', $shopName), 0, 4)) . '-' . rand(1000, 9999);
                 $insCustStmt->execute([
                     $areaId, $shopName, $ownerName, $code, $phone, $whatsapp,
-                    $address, $creditLimit, $openingBalance
+                    $address, $creditLimit, $openingBalance, $openingBalance
                 ]);
                 $inserted++;
             }

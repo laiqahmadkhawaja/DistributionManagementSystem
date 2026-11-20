@@ -43,17 +43,26 @@ $products = $pdo->query($prodSql)->fetchAll(PDO::FETCH_ASSOC);
 // Selected parameters
 $selectedDate = sanitize($_GET['date'] ?? date('Y-m-d'));
 $selectedBookerId = (int)($_GET['booker_id'] ?? (!empty($currentEmp['id']) ? $currentEmp['id'] : ($bookers[0]['id'] ?? 0)));
-$selectedAreaId = (int)($_GET['area_id'] ?? ($areas[0]['id'] ?? 0));
+$selectedAreaId = isset($_GET['area_id']) ? (int)$_GET['area_id'] : 0;
 $selectedCustomerId = (int)($_GET['customer_id'] ?? 0);
 
-// Load customers for selected area
-$custStmt = $pdo->prepare("
-    SELECT id, code, shop_name, owner_name, phone, address, current_balance, credit_limit
-    FROM customers 
-    WHERE status = 'active' AND area_id = ?
-    ORDER BY shop_name ASC
-");
-$custStmt->execute([$selectedAreaId]);
+// Load customers for selected area (or all active customers if 0)
+if ($selectedAreaId > 0) {
+    $custStmt = $pdo->prepare("
+        SELECT id, code, shop_name, owner_name, phone, address, current_balance, credit_limit
+        FROM customers 
+        WHERE status = 'active' AND area_id = ?
+        ORDER BY shop_name ASC
+    ");
+    $custStmt->execute([$selectedAreaId]);
+} else {
+    $custStmt = $pdo->query("
+        SELECT id, code, shop_name, owner_name, phone, address, current_balance, credit_limit
+        FROM customers 
+        WHERE status = 'active'
+        ORDER BY shop_name ASC
+    ");
+}
 $customersInArea = $custStmt->fetchAll(PDO::FETCH_ASSOC);
 
 // Handle POST order creation
@@ -257,6 +266,7 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
             <div class="col-md-5">
                 <label class="form-label small fw-bold text-muted mb-1">Route / Area</label>
                 <select name="area_id" class="form-select form-select-sm" onchange="document.getElementById('routeFilterForm').submit();">
+                    <option value="0" <?= $selectedAreaId == 0 ? 'selected' : '' ?>>-- All Routes / All Customers (<?= count($customersInArea) ?>) --</option>
                     <?php foreach ($areas as $a): ?>
                         <option value="<?= $a['id'] ?>" <?= $selectedAreaId == $a['id'] ? 'selected' : '' ?>>
                             <?= htmlspecialchars($a['name']) ?> (<?= htmlspecialchars($a['code']) ?>)
@@ -274,12 +284,18 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
         <div class="card border-0 shadow-sm rounded-3 bg-white h-100">
             <div class="card-header bg-white py-2 d-flex justify-content-between align-items-center border-bottom">
                 <span class="fw-bold text-dark small">
-                    <i class="bi bi-shop text-primary me-1"></i> Shops in Route (<?= count($customersInArea) ?>)
+                    <i class="bi bi-shop text-primary me-1"></i> Shops (<?= count($customersInArea) ?>)
                 </span>
+                <a href="<?= BASE_URL ?>/modules/customers/create.php" target="_blank" class="badge bg-outline-primary text-primary border border-primary text-decoration-none">
+                    + New Shop
+                </a>
             </div>
-            <div class="list-group list-group-flush overflow-auto" style="max-height: 580px;">
+            <div class="p-2 border-bottom bg-light">
+                <input type="text" id="shopSearchInput" class="form-control form-control-sm" placeholder="🔍 Quick search shop..." oninput="filterShopList(this.value);">
+            </div>
+            <div class="list-group list-group-flush overflow-auto" id="shopListContainer" style="max-height: 580px;">
                 <?php if (empty($customersInArea)): ?>
-                    <div class="p-3 text-center text-muted small">No active shops found in this area.</div>
+                    <div class="p-3 text-center text-muted small">No active shops found.</div>
                 <?php else: foreach ($customersInArea as $sh): 
                     $isSelected = ($selectedCustomerId == $sh['id']) || ($selectedCustomerId === 0 && $customersInArea[0]['id'] == $sh['id']);
                     if ($isSelected && $selectedCustomerId === 0) {
@@ -287,7 +303,8 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
                     }
                 ?>
                     <a href="<?= BASE_URL ?>/modules/orders/quick_booking.php?date=<?= $selectedDate ?>&booker_id=<?= $selectedBookerId ?>&area_id=<?= $selectedAreaId ?>&customer_id=<?= $sh['id'] ?>" 
-                       class="list-group-item list-group-item-action py-2 px-3 <?= $isSelected ? 'active text-white' : '' ?>">
+                       class="list-group-item list-group-item-action py-2 px-3 shop-list-item <?= $isSelected ? 'active text-white' : '' ?>"
+                       data-shop-name="<?= htmlspecialchars(strtolower($sh['shop_name'] . ' ' . $sh['owner_name'] . ' ' . $sh['phone'] . ' ' . $sh['code'])) ?>">
                         <div class="d-flex justify-content-between align-items-center">
                             <strong style="font-size: 0.9rem;"><?= htmlspecialchars($sh['shop_name']) ?></strong>
                             <small class="badge <?= $isSelected ? 'bg-light text-dark' : 'bg-secondary' ?>"><?= htmlspecialchars($sh['code']) ?></small>
@@ -565,6 +582,15 @@ function removeRow(btn) {
         row.querySelector('.line-total-cell').innerText = 'Rs. 0';
         recalcOrderTotal();
     }
+}
+
+function filterShopList(term) {
+    term = (term || '').toLowerCase().trim();
+    const items = document.querySelectorAll('.shop-list-item');
+    items.forEach(el => {
+        const text = (el.getAttribute('data-shop-name') || el.innerText).toLowerCase();
+        el.style.display = (term === '' || text.includes(term)) ? '' : 'none';
+    });
 }
 
 function submitBooking(actionType) {

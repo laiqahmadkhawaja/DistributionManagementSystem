@@ -98,19 +98,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['import_products'])) {
     $insCatStmt = $pdo->prepare("INSERT INTO categories (`name`, `code`, `status`, `created_at`) VALUES (?, ?, 'active', NOW())");
     $insBrandStmt = $pdo->prepare("INSERT INTO brands (`name`, `code`, `status`, `created_at`) VALUES (?, ?, 'active', NOW())");
     
-    $checkProdStmt = $pdo->prepare("SELECT id FROM products WHERE code = ? LIMIT 1");
+    $checkProdStmt = $pdo->prepare("SELECT id FROM products WHERE code = ? OR name = ? LIMIT 1");
     
     $insertProdStmt = $pdo->prepare("
         INSERT INTO products (
             `category_id`, `brand_id`, `base_unit_id`, `name`, `code`, `barcode`,
-            `cost_price`, `trade_price`, `retail_price`, `status`, `created_at`
+            `purchase_price`, `trade_price`, `retail_price`, `status`, `created_at`
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', NOW())
     ");
 
     $updateProdStmt = $pdo->prepare("
         UPDATE products 
         SET `category_id` = ?, `brand_id` = ?, `name` = ?, `barcode` = ?,
-            `cost_price` = ?, `trade_price` = ?, `retail_price` = ?, `status` = 'active'
+            `purchase_price` = ?, `trade_price` = ?, `retail_price` = ?, `status` = 'active'
         WHERE id = ?
     ");
 
@@ -122,9 +122,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['import_products'])) {
 
     $stockLedgerStmt = $pdo->prepare("
         INSERT INTO stock_ledger (
-            `product_id`, `warehouse_id`, `movement_type`, `reference_type`, `reference_id`,
-            `quantity`, `unit_cost`, `running_balance`, `notes`, `created_at`
-        ) VALUES (?, ?, 'opening_balance', 'opening', 0, ?, ?, ?, 'Opening Stock via Excel Batch Import', NOW())
+            `warehouse_id`, `product_id`, `movement_type`, `reference_type`, `reference_id`,
+            `unit_id`, `quantity_in`, `quantity_out`, `balance_quantity`, `unit_cost`, `total_cost`, `notes`, `created_at`
+        ) VALUES (?, ?, 'adjustment_in', 'initial_setup', 0, ?, ?, 0, ?, ?, ?, 'Opening Stock via Excel Batch Import', NOW())
     ");
 
     try {
@@ -151,6 +151,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['import_products'])) {
             if (empty($name)) {
                 $errors[] = "Row {$rowNum}: Product Name is required.";
                 continue;
+            }
+
+            // Auto-detect pieces per carton if not provided explicitly (e.g. "Nimko Daal Moth (1*36)" or "Mix (1x24)")
+            if ($pcsPerCarton <= 0) {
+                if (preg_match('/(?:1\s*[*xX]\s*(\d+))/', $name, $matches)) {
+                    $pcsPerCarton = (float)$matches[1];
+                } elseif (preg_match('/\b(?:ctn|pack|box)\s*(?:of|-)?\s*(\d+)\b/i', $name, $matches)) {
+                    $pcsPerCarton = (float)$matches[1];
+                }
             }
 
             if (empty($code)) {
@@ -185,8 +194,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['import_products'])) {
                 }
             }
 
-            // Check if product exists
-            $checkProdStmt->execute([$code]);
+            // Check if product exists by code or name
+            $checkProdStmt->execute([$code, $name]);
             $existingId = $checkProdStmt->fetchColumn();
 
             if ($existingId) {
@@ -212,9 +221,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['import_products'])) {
 
             // Opening stock recording
             if ($openingStock > 0 && !$existingId) {
-                $currentBal = (float)$pdo->query("SELECT COALESCE(SUM(quantity), 0) FROM stock_ledger WHERE product_id = {$prodId} AND warehouse_id = {$mainWarehouseId}")->fetchColumn();
+                $currentBal = (float)$pdo->query("SELECT COALESCE(SUM(quantity_in) - SUM(quantity_out), 0) FROM stock_ledger WHERE product_id = {$prodId} AND warehouse_id = {$mainWarehouseId}")->fetchColumn();
                 $newBal = $currentBal + $openingStock;
-                $stockLedgerStmt->execute([$prodId, $mainWarehouseId, $openingStock, $costPrice, $newBal]);
+                $totCost = $openingStock * $costPrice;
+                $stockLedgerStmt->execute([$mainWarehouseId, $prodId, $pieceUnitId, $openingStock, $newBal, $costPrice, $totCost]);
             }
         }
 

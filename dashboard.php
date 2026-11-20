@@ -177,11 +177,11 @@ require_once __DIR__ . '/includes/header.php';
         <small class="text-muted">Role: <span class="fw-semibold text-primary"><?= htmlspecialchars($user['role_name']) ?></span> · Live Ledger Figures</small>
     </div>
     <div class="d-flex gap-2">
-        <a href="<?= BASE_URL ?>/modules/orders/book.php" class="btn btn-sm btn-primary d-none d-md-inline-flex align-items-center">
-            <i class="bi bi-plus-circle me-1"></i> Book Order
+        <a href="<?= BASE_URL ?>/modules/orders/quick_booking.php" class="btn btn-sm btn-warning fw-bold d-inline-flex align-items-center shadow-sm">
+            <i class="bi bi-lightning-charge-fill me-1"></i> Quick Booking
         </a>
-        <a href="<?= BASE_URL ?>/modules/reports/loadsheet.php" class="btn btn-sm btn-outline-primary d-none d-md-inline-flex align-items-center">
-            <i class="bi bi-truck-flatbed me-1"></i> Load Sheet
+        <a href="<?= BASE_URL ?>/modules/warehouse/stock_issue_print.php" target="_blank" class="btn btn-sm btn-outline-primary d-none d-md-inline-flex align-items-center">
+            <i class="bi bi-truck me-1"></i> Load Form
         </a>
         <a href="<?= BASE_URL ?>/modules/reports/daily_closing.php" class="btn btn-sm btn-outline-success d-none d-md-inline-flex align-items-center">
             <i class="bi bi-safe2 me-1"></i> Day Closing
@@ -189,6 +189,88 @@ require_once __DIR__ . '/includes/header.php';
         <a href="<?= BASE_URL ?>/modules/reports/index.php" class="btn btn-sm btn-outline-secondary d-none d-md-inline-flex align-items-center">
             <i class="bi bi-graph-up me-1"></i> Reports
         </a>
+    </div>
+</div>
+
+<!-- Daily Traditional FMCG Operations Hub -->
+<div class="card border-0 shadow-sm rounded-3 mb-4 bg-white">
+    <div class="card-header bg-white py-3 d-flex flex-wrap justify-content-between align-items-center border-bottom gap-2">
+        <div>
+            <h5 class="fw-bold mb-0 text-dark">
+                <i class="bi bi-box-seam text-primary me-2"></i>Daily FMCG Distribution Desk
+            </h5>
+            <small class="text-muted">Standard daily workflow for order booking, van load forms, billing and cash reconciliation</small>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <a href="<?= BASE_URL ?>/modules/products/import.php" class="btn btn-sm btn-outline-success">
+                <i class="bi bi-file-earmark-excel me-1"></i> Import Products
+            </a>
+            <a href="<?= BASE_URL ?>/modules/customers/import.php" class="btn btn-sm btn-outline-primary">
+                <i class="bi bi-people me-1"></i> Import Shops & Opening Balances
+            </a>
+            <a href="<?= BASE_URL ?>/modules/reports/parties_credit.php" class="btn btn-sm btn-outline-danger">
+                <i class="bi bi-journal-bookmark me-1"></i> Parties Credit Ledger
+            </a>
+        </div>
+    </div>
+    <div class="card-body p-3">
+        <div class="row g-2">
+            <!-- Step 1: Quick Booking -->
+            <div class="col-md-2 col-6">
+                <a href="<?= BASE_URL ?>/modules/orders/quick_booking.php" class="card h-100 border text-decoration-none text-dark p-3 text-center rounded-3 bg-light hover-shadow" style="transition: transform 0.15s ease;">
+                    <div class="mb-2">
+                        <span class="badge bg-warning text-dark rounded-pill px-2 py-1">Step 1</span>
+                    </div>
+                    <i class="bi bi-lightning-charge-fill text-warning fs-3 mb-2 d-block"></i>
+                    <strong class="d-block text-truncate" style="font-size: 0.9rem;">Order Booking</strong>
+                    <small class="text-muted" style="font-size: 0.75rem;">Enter Booker Slips</small>
+                </a>
+            </div>
+            <!-- Step 2: Load Form -->
+            <div class="col-md-2 col-6">
+                <a href="<?= BASE_URL ?>/modules/warehouse/stock_issue_print.php" target="_blank" class="card h-100 border text-decoration-none text-dark p-3 text-center rounded-3 bg-light hover-shadow" style="transition: transform 0.15s ease;">
+                    <div class="mb-2">
+                        <span class="badge bg-primary rounded-pill px-2 py-1">Step 2</span>
+                    </div>
+                    <i class="bi bi-truck text-primary fs-3 mb-2 d-block"></i>
+                    <strong class="d-block text-truncate" style="font-size: 0.9rem;">Master Load Form</strong>
+                    <small class="text-muted" style="font-size: 0.75rem;">Consolidated Gatepass</small>
+                </a>
+            </div>
+            <!-- Step 3: Print Bills -->
+            <div class="col-md-3 col-6">
+                <a href="<?= BASE_URL ?>/modules/orders/print_batch.php" target="_blank" class="card h-100 border text-decoration-none text-dark p-3 text-center rounded-3 bg-light hover-shadow" style="transition: transform 0.15s ease;">
+                    <div class="mb-2">
+                        <span class="badge bg-info text-dark rounded-pill px-2 py-1">Step 3</span>
+                    </div>
+                    <i class="bi bi-printer-fill text-info fs-3 mb-2 d-block"></i>
+                    <strong class="d-block text-truncate" style="font-size: 0.9rem;">Print Batch Bills</strong>
+                    <small class="text-muted" style="font-size: 0.75rem;">A4 (Full) / A5 (Half Sheet)</small>
+                </a>
+            </div>
+            <!-- Step 4: Run Sheet -->
+            <div class="col-md-2 col-6">
+                <a href="<?= BASE_URL ?>/modules/delivery/sheet_print.php" target="_blank" class="card h-100 border text-decoration-none text-dark p-3 text-center rounded-3 bg-light hover-shadow" style="transition: transform 0.15s ease;">
+                    <div class="mb-2">
+                        <span class="badge bg-success rounded-pill px-2 py-1">Step 4</span>
+                    </div>
+                    <i class="bi bi-file-earmark-spreadsheet text-success fs-3 mb-2 d-block"></i>
+                    <strong class="d-block text-truncate" style="font-size: 0.9rem;">Delivery Run Sheet</strong>
+                    <small class="text-muted" style="font-size: 0.75rem;">Daily Sale & Credit Sheet</small>
+                </a>
+            </div>
+            <!-- Step 5: Reconcile -->
+            <div class="col-md-3 col-12">
+                <a href="<?= BASE_URL ?>/modules/delivery/sheet_reconcile.php" class="card h-100 border text-decoration-none text-dark p-3 text-center rounded-3 bg-light hover-shadow" style="transition: transform 0.15s ease;">
+                    <div class="mb-2">
+                        <span class="badge bg-danger rounded-pill px-2 py-1">Step 5</span>
+                    </div>
+                    <i class="bi bi-cash-stack text-success fs-3 mb-2 d-block"></i>
+                    <strong class="d-block text-truncate" style="font-size: 0.9rem;">Evening Cash Reconcile</strong>
+                    <small class="text-muted" style="font-size: 0.75rem;">Post Cash, Udhaar & Returns</small>
+                </a>
+            </div>
+        </div>
     </div>
 </div>
 

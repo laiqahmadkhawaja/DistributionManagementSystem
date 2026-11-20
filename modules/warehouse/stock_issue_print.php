@@ -52,29 +52,36 @@ if ($deliveryManId > 0) {
 
 $whereSql = implode(' AND ', $whereClauses);
 
-// Query consolidated items grouped by Area/Company and Product
+// Query consolidated items: when no specific area is selected, merge identical items across all bookers & routes
+if ($areaId > 0) {
+    $selectArea = "a.name as area_name, COALESCE(b.name, a.name) as company_name,";
+    $groupBy = "a.id, a.name, b.name, p.id, p.name, p.code, u.name, u.code, uc.multiplier";
+} else {
+    $selectArea = "'All Routes' as area_name, COALESCE(b.name, 'General') as company_name,";
+    $groupBy = "b.name, p.id, p.name, p.code, u.name, u.code, uc.multiplier";
+}
+
 $sql = "
     SELECT 
-        a.name as area_name,
-        COALESCE(b.name, a.name) as company_name,
+        {$selectArea}
         p.id as product_id,
         p.name as product_name,
         p.code as product_code,
         COALESCE(u.name, 'Piece') as unit_name,
         COALESCE(u.code, 'pc') as unit_code,
         COALESCE(uc.multiplier, 1) as carton_multiplier,
-        AVG(soi.unit_price) as avg_rate,
+        (SUM(soi.line_total) / NULLIF(SUM(soi.quantity), 0)) as avg_rate,
         SUM(soi.quantity) as total_qty,
         SUM(soi.line_total) as total_amount
     FROM sales_order_items soi
     JOIN sales_orders so ON soi.sales_order_id = so.id
     JOIN products p ON soi.product_id = p.id
     LEFT JOIN brands b ON p.brand_id = b.id
-    JOIN areas a ON so.area_id = a.id
+    LEFT JOIN areas a ON so.area_id = a.id
     LEFT JOIN units u ON soi.unit_id = u.id
     LEFT JOIN unit_conversions uc ON uc.product_id = p.id AND uc.from_unit_id = 2
     WHERE {$whereSql}
-    GROUP BY a.id, a.name, b.name, p.id, p.name, p.code, u.name, u.code, uc.multiplier
+    GROUP BY {$groupBy}
     ORDER BY company_name ASC, p.name ASC
 ";
 $stmt = $pdo->prepare($sql);
