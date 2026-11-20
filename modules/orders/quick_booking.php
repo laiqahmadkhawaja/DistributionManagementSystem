@@ -49,6 +49,25 @@ $prodSql = "
 ";
 $products = $pdo->query($prodSql)->fetchAll(PDO::FETCH_ASSOC);
 
+// Enrich product carton multipliers and piece rates
+foreach ($products as &$p) {
+    $mult = (float)$p['carton_multiplier'];
+    if ($mult <= 1) {
+        if (preg_match('/(?:1\s*[*xX]\s*(\d+))/', $p['name'], $m)) {
+            $mult = (float)$m[1];
+            $p['carton_multiplier'] = $mult;
+        }
+    }
+    // In FMCG: trade_price is base Carton Rate
+    $p['carton_rate'] = (float)$p['trade_price'];
+    $p['piece_rate'] = $mult > 0 ? round($p['carton_rate'] / $mult, 2) : $p['carton_rate'];
+    $p['wholesale_carton_rate'] = (float)$p['wholesale_price'];
+    $p['wholesale_piece_rate'] = $mult > 0 ? round($p['wholesale_carton_rate'] / $mult, 2) : $p['wholesale_carton_rate'];
+    $p['retail_carton_rate'] = (float)$p['retail_price'];
+    $p['retail_piece_rate'] = $mult > 0 ? round($p['retail_carton_rate'] / $mult, 2) : $p['retail_carton_rate'];
+}
+unset($p);
+
 // Selected parameters
 $selectedDate = sanitize($_GET['date'] ?? date('Y-m-d'));
 $selectedBookerId = (int)($_GET['booker_id'] ?? (!empty($currentEmp['id']) ? $currentEmp['id'] : ($bookers[0]['id'] ?? 0)));
@@ -91,6 +110,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $prodIds = $_POST['prod_id'] ?? [];
     $ctnQtys = $_POST['ctn_qty'] ?? [];
     $pcsQtys = $_POST['pcs_qty'] ?? [];
+    $cartonRates = $_POST['carton_rate'] ?? [];
+    $pieceRates = $_POST['piece_rate'] ?? [];
     $rates = $_POST['rate'] ?? [];
     $discounts = $_POST['item_discount'] ?? [];
 
@@ -122,16 +143,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             $pId = (int)$prodIds[$i];
             $ctn = (float)($ctnQtys[$i] ?? 0);
             $pcs = (float)($pcsQtys[$i] ?? 0);
-            $rate = (float)($rates[$i] ?? 0);
+            $ctnRate = (float)($cartonRates[$i] ?? 0);
+            $pcsRate = (float)($pieceRates[$i] ?? 0);
+            $legacyRate = (float)($rates[$i] ?? 0);
             $disc = (float)($discounts[$i] ?? 0);
 
             if ($pId <= 0 || ($ctn <= 0 && $pcs <= 0)) {
                 continue;
             }
 
-            // Fetch product conversion multiplier
+            // Fetch product conversion multiplier & base unit
             $pStmt = $pdo->prepare("
-                SELECT p.base_unit_id, COALESCE(uc.multiplier, 1) as carton_multiplier
+                SELECT p.base_unit_id, p.name, COALESCE(uc.multiplier, 1) as carton_multiplier
                 FROM products p
                 LEFT JOIN unit_conversions uc ON uc.product_id = p.id AND uc.from_unit_id = 2
                 WHERE p.id = ?
@@ -140,17 +163,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             $pData = $pStmt->fetch();
 
             $multiplier = (float)($pData['carton_multiplier'] ?? 1);
+            if ($multiplier <= 1 && preg_match('/(?:1\s*[*xX]\s*(\d+))/', $pData['name'] ?? '', $m)) {
+                $multiplier = (float)$m[1];
+            }
             $baseUnitId = (int)($pData['base_unit_id'] ?? 1);
 
-            $totalPieces = ($ctn * $multiplier) + $pcs;
-            $lineRaw = round($totalPieces * $rate, 2);
+            // Rate reconciliation:
+            if ($ctnRate <= 0 && $legacyRate > 0) {
+                $ctnRate = $legacyRate;
+            }
+            if ($pcsRate <= 0) {
+                $pcsRate = ($multiplier > 0) ? round($ctnRate / $multiplier, 4) : $ctnRate;
+            }
+            if ($ctnRate <= 0) {
+                $ctnRate = round($pcsRate * $multiplier, 2);
+            }
+
+            // FMCG exact line total calculation: (Cartons * Carton Rate) + (Loose Pieces * Loose Piece Rate)
+            $lineRaw = round(($ctn * $ctnRate) + ($pcs * $pcsRate), 2);
             $lineTotal = max(0.00, round($lineRaw - $disc, 2));
             $subtotal += $lineTotal;
+
+            $totalPieces = ($ctn * $multiplier) + $pcs;
 
             $orderItems[] = [
                 'product_id' => $pId,
                 'unit_id' => $baseUnitId,
-                'unit_price' => $rate,
+                'unit_price' => $pcsRate,
                 'quantity' => $totalPieces,
                 'discount' => $disc,
                 'line_total' => $lineTotal
@@ -366,14 +405,19 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
                         </div>
                     </div>
 
-                    <!-- Category Pills Filter -->
-                    <div class="d-flex gap-1 overflow-auto pb-2 mb-3" id="categoryPills">
-                        <button type="button" class="btn btn-sm btn-primary category-btn active" onclick="filterByCategory('all', this)">All (<?= count($products) ?>)</button>
-                        <?php foreach ($categories as $cat): ?>
-                            <button type="button" class="btn btn-sm btn-outline-secondary category-btn" onclick="filterByCategory('<?= htmlspecialchars(strtolower($cat['name'])) ?>', this)">
-                                <?= htmlspecialchars($cat['name']) ?>
-                            </button>
-                        <?php endforeach; ?>
+                    <!-- Category Filter Bar with Direct Manage Categories Link -->
+                    <div class="d-flex justify-content-between align-items-center mb-3 gap-2">
+                        <div class="d-flex gap-1 overflow-auto pb-1 flex-grow-1" id="categoryPills">
+                            <button type="button" class="btn btn-sm btn-primary category-btn active" onclick="filterByCategory('all', this)">All (<?= count($products) ?>)</button>
+                            <?php foreach ($categories as $cat): ?>
+                                <button type="button" class="btn btn-sm btn-outline-secondary category-btn text-nowrap" onclick="filterByCategory('<?= htmlspecialchars(strtolower($cat['name'])) ?>', this)">
+                                    <?= htmlspecialchars($cat['name']) ?>
+                                </button>
+                            <?php endforeach; ?>
+                        </div>
+                        <a href="<?= BASE_URL ?>/modules/products/categories.php" target="_blank" class="btn btn-sm btn-outline-primary text-nowrap" title="Add, edit or adjust product categories">
+                            <i class="bi bi-gear-fill me-1"></i> Manage Categories
+                        </a>
                     </div>
 
                     <!-- Products Grid -->
@@ -384,6 +428,10 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
                             if ($mult > 1 && !strpos($pLabel, '*')) {
                                 $pLabel .= " (1*" . (int)$mult . ")";
                             }
+                            $stockTotalPcs = (float)$p['current_stock'];
+                            $stockCtns = $mult > 1 ? floor($stockTotalPcs / $mult) : $stockTotalPcs;
+                            $stockLoose = $mult > 1 ? fmod($stockTotalPcs, $mult) : 0;
+                            $stockText = ($mult > 1) ? ((int)$stockCtns . ' Ctn' . ($stockLoose > 0 ? " + " . (int)$stockLoose . " Pcs" : "")) : ((int)$stockTotalPcs . ' Pcs');
                         ?>
                             <div class="col-xl-4 col-md-6 col-12 prod-card-col" 
                                  data-name="<?= htmlspecialchars(strtolower($p['name'] . ' ' . $pLabel . ' ' . $p['code'] . ' ' . $p['brand_name'])) ?>"
@@ -396,8 +444,8 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
                                         <span class="badge bg-light text-dark border text-truncate" style="max-width: 100px; font-size: 0.7rem;">
                                             <?= htmlspecialchars($p['brand_name']) ?>
                                         </span>
-                                        <span class="badge <?= $p['current_stock'] > 0 ? 'bg-success bg-opacity-10 text-success' : 'bg-danger bg-opacity-10 text-danger' ?>" style="font-size: 0.7rem;">
-                                            Stock: <?= (int)$p['current_stock'] ?>
+                                        <span class="badge <?= $stockTotalPcs > 0 ? 'bg-success bg-opacity-10 text-success' : 'bg-danger bg-opacity-10 text-danger' ?>" style="font-size: 0.7rem;" title="<?= (int)$stockTotalPcs ?> physical pieces in warehouse">
+                                            Stock: <?= $stockText ?>
                                         </span>
                                     </div>
                                     <strong class="d-block text-dark text-truncate mb-1" style="font-size: 0.9rem;" title="<?= htmlspecialchars($pLabel) ?>">
@@ -405,15 +453,15 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
                                     </strong>
                                     <div class="d-flex justify-content-between align-items-end mt-2 pt-1 border-top">
                                         <div>
-                                            <small class="text-muted d-block" style="font-size: 0.68rem;">Trade Price</small>
+                                            <small class="text-muted d-block" style="font-size: 0.68rem;">Carton Rate</small>
                                             <span class="fw-bold text-primary" style="font-size: 0.95rem;">
-                                                Rs. <?= number_format($p['trade_price'], 2) ?>
+                                                Rs. <?= number_format($p['carton_rate'], 0) ?>
                                             </span>
                                         </div>
                                         <div class="text-end">
-                                            <small class="text-muted d-block" style="font-size: 0.68rem;">Retail Price</small>
-                                            <span class="text-muted small">
-                                                Rs. <?= number_format($p['retail_price'], 2) ?>
+                                            <small class="text-muted d-block" style="font-size: 0.68rem;">Loose Rate (÷<?= (int)$mult ?>)</small>
+                                            <span class="fw-semibold text-secondary" style="font-size: 0.85rem;">
+                                                Rs. <?= number_format($p['piece_rate'], 2) ?>/pc
                                             </span>
                                         </div>
                                     </div>
@@ -506,50 +554,79 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
             <div class="modal-header bg-light py-2 border-bottom">
                 <div>
                     <h6 class="modal-title fw-bold text-dark mb-0" id="modalProdTitle">Product Title</h6>
-                    <small class="text-muted" id="modalProdSubtitle">1 Carton = 36 Pcs &middot; Available Stock: 500</small>
+                    <small class="text-muted" id="modalProdSubtitle">1 Carton = 36 Pcs &middot; Available Stock: 500 Pcs</small>
                 </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body p-3">
                 <input type="hidden" id="modalProdId">
-                <input type="hidden" id="modalCartonMultiplier">
+                <input type="hidden" id="modalCartonMultiplier" value="1">
 
                 <div class="row g-2 mb-3">
                     <div class="col-6">
-                        <label class="form-label small fw-bold text-muted mb-1">Carton Qty (Ctn)</label>
-                        <input type="number" min="0" step="1" id="modalCtnQty" class="form-control form-control-lg text-center fw-bold fs-4" value="1" oninput="calcModalLineTotal();">
+                        <label class="form-label small fw-bold text-dark mb-1">
+                            <i class="bi bi-box-seam text-primary me-1"></i> Carton Qty (Ctn)
+                        </label>
+                        <input type="number" min="0" step="1" id="modalCtnQty" class="form-control form-control-lg text-center fw-bold fs-4 text-primary" value="1" oninput="calcModalLineTotal();">
                     </div>
                     <div class="col-6">
-                        <label class="form-label small fw-bold text-muted mb-1">Loose Pieces (Pcs)</label>
+                        <label class="form-label small fw-bold text-dark mb-1">
+                            <i class="bi bi-puzzle text-secondary me-1"></i> Loose Pieces (Pcs)
+                        </label>
                         <input type="number" min="0" step="1" id="modalPcsQty" class="form-control form-control-lg text-center fs-4" value="0" oninput="calcModalLineTotal();">
                     </div>
                 </div>
 
                 <div class="row g-2 mb-3">
                     <div class="col-6">
-                        <label class="form-label small fw-bold text-muted mb-1">Rate / Price per Piece</label>
-                        <input type="number" min="0" step="0.01" id="modalUnitRate" class="form-control text-end fw-bold fs-5 text-primary" oninput="calcModalLineTotal();">
-                        <small class="text-muted" style="font-size: 0.7rem;">Carton Rate: <span id="modalCartonRatePreview">Rs. 0</span></small>
+                        <label class="form-label small fw-bold text-primary mb-1">
+                            Carton Rate (Rs.)
+                        </label>
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text bg-white">Rs.</span>
+                            <input type="number" min="0" step="0.01" id="modalCartonRate" class="form-control text-end fw-bold fs-5 text-primary" oninput="onCartonRateChange();">
+                        </div>
+                        <small class="text-muted" style="font-size: 0.72rem;">Full carton price</small>
                     </div>
                     <div class="col-6">
-                        <label class="form-label small fw-bold text-muted mb-1">Special Item Discount (Rs.)</label>
-                        <input type="number" min="0" step="0.01" id="modalItemDiscount" class="form-control text-end fs-5 text-danger" value="0" oninput="calcModalLineTotal();">
-                        <small class="text-muted" style="font-size: 0.7rem;">Deducted from line total</small>
+                        <label class="form-label small fw-bold text-secondary mb-1">
+                            Loose Piece Rate (Rs.)
+                        </label>
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text bg-white">Rs.</span>
+                            <input type="number" min="0" step="0.01" id="modalPieceRate" class="form-control text-end fw-bold fs-5 text-secondary" oninput="onPieceRateChange();">
+                        </div>
+                        <small class="text-muted" style="font-size: 0.72rem;">= Carton Rate ÷ <span id="modalMultText">1</span></small>
                     </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label small fw-bold text-danger mb-1">
+                        <i class="bi bi-tag-fill me-1"></i> Special Item Discount (Rs.)
+                    </label>
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-white text-danger">Rs.</span>
+                        <input type="number" min="0" step="0.01" id="modalItemDiscount" class="form-control text-end fs-5 text-danger fw-bold" value="0" oninput="calcModalLineTotal();">
+                    </div>
+                    <small class="text-muted" style="font-size: 0.7rem;">Optional concession deducted from this line total</small>
                 </div>
 
                 <!-- Line Calculation Summary Box -->
                 <div class="bg-light p-3 rounded-3 border">
                     <div class="d-flex justify-content-between align-items-center mb-1 small">
-                        <span class="text-muted">Total Calculated Pieces:</span>
-                        <strong class="text-dark" id="modalPiecesTotalDisplay">0 Pieces</strong>
+                        <span class="text-muted">Breakdown:</span>
+                        <strong class="text-dark" id="modalBreakdownDisplay">1 Ctn + 0 Pcs = 1 Ctn</strong>
                     </div>
                     <div class="d-flex justify-content-between align-items-center mb-1 small">
-                        <span class="text-muted">Subtotal (Qty &times; Rate):</span>
-                        <span id="modalSubtotalDisplay">Rs. 0.00</span>
+                        <span class="text-muted">Carton Total:</span>
+                        <span id="modalCtnTotalDisplay">Rs. 0.00</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-1 small">
+                        <span class="text-muted">Loose Pieces Total:</span>
+                        <span id="modalPcsTotalDisplay">Rs. 0.00</span>
                     </div>
                     <div class="d-flex justify-content-between align-items-center mb-1 small text-danger" id="modalDiscountRow">
-                        <span>Line Discount:</span>
+                        <span>Discount:</span>
                         <span id="modalDiscountDisplay">-Rs. 0.00</span>
                     </div>
                     <div class="d-flex justify-content-between align-items-center pt-2 border-top">
@@ -654,12 +731,34 @@ function filterByCategory(cat, btn) {
     });
 }
 
+// Rate synchronization when Carton Rate changes
+function onCartonRateChange() {
+    const mult = parseFloat(document.getElementById('modalCartonMultiplier').value) || 1;
+    const ctnRate = parseFloat(document.getElementById('modalCartonRate').value) || 0;
+    const pcsRate = mult > 0 ? (ctnRate / mult) : ctnRate;
+    document.getElementById('modalPieceRate').value = pcsRate.toFixed(2);
+    calcModalLineTotal();
+}
+
+// Rate synchronization when Loose Piece Rate changes
+function onPieceRateChange() {
+    const mult = parseFloat(document.getElementById('modalCartonMultiplier').value) || 1;
+    const pcsRate = parseFloat(document.getElementById('modalPieceRate').value) || 0;
+    const ctnRate = pcsRate * mult;
+    document.getElementById('modalCartonRate').value = ctnRate.toFixed(2);
+    calcModalLineTotal();
+}
+
 // Open Quantity & Rate Confirmation Modal
 function openConfirmModal(product) {
     if (!modalBs) return;
 
-    const mult = parseFloat(product.carton_multiplier) || 1;
+    let mult = parseFloat(product.carton_multiplier) || 1;
     let label = product.name;
+    if (mult <= 1) {
+        const m = label.match(/(?:1\s*[*xX]\s*(\d+))/);
+        if (m) mult = parseFloat(m[1]);
+    }
     if (mult > 1 && !label.includes('*')) {
         label += ` (1*${mult})`;
     }
@@ -668,22 +767,27 @@ function openConfirmModal(product) {
     document.getElementById('modalProdSubtitle').innerText = `1 Carton = ${mult} Pieces · Available Stock: ${product.current_stock} Pcs`;
     document.getElementById('modalProdId').value = product.id;
     document.getElementById('modalCartonMultiplier').value = mult;
+    document.getElementById('modalMultText').innerText = mult;
 
     // Check if this item is already in the cart
     const existing = cartItems.find(it => it.product_id == product.id);
     if (existing) {
         document.getElementById('modalCtnQty').value = existing.ctn_qty;
         document.getElementById('modalPcsQty').value = existing.pcs_qty;
-        document.getElementById('modalUnitRate').value = existing.rate;
+        document.getElementById('modalCartonRate').value = existing.carton_rate.toFixed(2);
+        document.getElementById('modalPieceRate').value = existing.piece_rate.toFixed(2);
         document.getElementById('modalItemDiscount').value = existing.discount;
     } else {
         document.getElementById('modalCtnQty').value = 1;
         document.getElementById('modalPcsQty').value = 0;
         
-        // Rate per piece based on selected tier
+        // Carton rate based on selected tier
         const tier = document.getElementById('priceTierGlobal')?.value || 'trade_price';
-        let unitRate = parseFloat(product[tier]) || parseFloat(product.trade_price) || 0;
-        document.getElementById('modalUnitRate').value = unitRate.toFixed(2);
+        let ctnRate = parseFloat(product[tier]) || parseFloat(product.carton_rate) || parseFloat(product.trade_price) || 0;
+        let pcsRate = mult > 0 ? (ctnRate / mult) : ctnRate;
+
+        document.getElementById('modalCartonRate').value = ctnRate.toFixed(2);
+        document.getElementById('modalPieceRate').value = pcsRate.toFixed(2);
         document.getElementById('modalItemDiscount').value = 0;
     }
 
@@ -697,25 +801,26 @@ function openConfirmModal(product) {
     }, 300);
 }
 
-// Calculate Modal Total dynamically
+// Calculate Modal Total dynamically: (Ctn * CtnRate) + (Pcs * PcsRate) - Discount
 function calcModalLineTotal() {
     const mult = parseFloat(document.getElementById('modalCartonMultiplier').value) || 1;
     const ctn = parseFloat(document.getElementById('modalCtnQty').value) || 0;
     const pcs = parseFloat(document.getElementById('modalPcsQty').value) || 0;
-    const rate = parseFloat(document.getElementById('modalUnitRate').value) || 0;
+    const ctnRate = parseFloat(document.getElementById('modalCartonRate').value) || 0;
+    const pcsRate = parseFloat(document.getElementById('modalPieceRate').value) || 0;
     const disc = parseFloat(document.getElementById('modalItemDiscount').value) || 0;
 
     const totalPieces = (ctn * mult) + pcs;
-    const subtotal = totalPieces * rate;
+    const ctnSubtotal = ctn * ctnRate;
+    const pcsSubtotal = pcs * pcsRate;
+    const subtotal = ctnSubtotal + pcsSubtotal;
     const netTotal = Math.max(0, subtotal - disc);
 
-    document.getElementById('modalPiecesTotalDisplay').innerText = `${totalPieces} Pieces (${ctn} Ctn + ${pcs} Pcs)`;
-    document.getElementById('modalSubtotalDisplay').innerText = `Rs. ${subtotal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-    document.getElementById('modalDiscountDisplay').innerText = `-Rs. ${disc.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+    document.getElementById('modalBreakdownDisplay').innerText = `${ctn} Ctn (${ctn * mult} Pcs) + ${pcs} Loose Pcs = ${totalPieces} Pcs`;
+    document.getElementById('modalCtnTotalDisplay').innerText = `${ctn} × Rs. ${ctnRate.toFixed(2)} = Rs. ${ctnSubtotal.toFixed(2)}`;
+    document.getElementById('modalPcsTotalDisplay').innerText = `${pcs} × Rs. ${pcsRate.toFixed(2)} = Rs. ${pcsSubtotal.toFixed(2)}`;
+    document.getElementById('modalDiscountDisplay').innerText = `-Rs. ${disc.toFixed(2)}`;
     document.getElementById('modalNetLineTotalDisplay').innerText = `Rs. ${netTotal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-
-    const cartonRate = (rate * mult);
-    document.getElementById('modalCartonRatePreview').innerText = `Rs. ${cartonRate.toFixed(2)} / ctn`;
 }
 
 // Commit Item from Modal to Cart
@@ -724,7 +829,8 @@ function commitModalItem() {
     const mult = parseFloat(document.getElementById('modalCartonMultiplier').value) || 1;
     const ctn = parseFloat(document.getElementById('modalCtnQty').value) || 0;
     const pcs = parseFloat(document.getElementById('modalPcsQty').value) || 0;
-    const rate = parseFloat(document.getElementById('modalUnitRate').value) || 0;
+    const ctnRate = parseFloat(document.getElementById('modalCartonRate').value) || 0;
+    const pcsRate = parseFloat(document.getElementById('modalPieceRate').value) || (mult > 0 ? ctnRate / mult : ctnRate);
     const disc = parseFloat(document.getElementById('modalItemDiscount').value) || 0;
 
     if (prodId <= 0 || (ctn <= 0 && pcs <= 0)) {
@@ -734,34 +840,29 @@ function commitModalItem() {
 
     const title = document.getElementById('modalProdTitle').innerText;
     const totalPieces = (ctn * mult) + pcs;
-    const lineTotal = Math.max(0, (totalPieces * rate) - disc);
+    const lineRaw = (ctn * ctnRate) + (pcs * pcsRate);
+    const lineTotal = Math.max(0, lineRaw - disc);
+
+    const itemData = {
+        product_id: prodId,
+        name: title,
+        carton_multiplier: mult,
+        ctn_qty: ctn,
+        pcs_qty: pcs,
+        total_pieces: totalPieces,
+        carton_rate: ctnRate,
+        piece_rate: pcsRate,
+        rate: pcsRate,
+        discount: disc,
+        line_total: lineTotal
+    };
 
     // Update or add
     const existingIdx = cartItems.findIndex(it => it.product_id == prodId);
     if (existingIdx >= 0) {
-        cartItems[existingIdx] = {
-            product_id: prodId,
-            name: title,
-            carton_multiplier: mult,
-            ctn_qty: ctn,
-            pcs_qty: pcs,
-            total_pieces: totalPieces,
-            rate: rate,
-            discount: disc,
-            line_total: lineTotal
-        };
+        cartItems[existingIdx] = itemData;
     } else {
-        cartItems.push({
-            product_id: prodId,
-            name: title,
-            carton_multiplier: mult,
-            ctn_qty: ctn,
-            pcs_qty: pcs,
-            total_pieces: totalPieces,
-            rate: rate,
-            discount: disc,
-            line_total: lineTotal
-        });
+        cartItems.push(itemData);
     }
 
     if (modalBs) {
@@ -803,6 +904,10 @@ function renderCartTray() {
         let hiddenHtml = '';
 
         cartItems.forEach((it, idx) => {
+            let qtyDesc = [];
+            if (it.ctn_qty > 0) qtyDesc.push(`${it.ctn_qty} Ctn (@ ${it.carton_rate.toFixed(0)})`);
+            if (it.pcs_qty > 0) qtyDesc.push(`${it.pcs_qty} Pcs (@ ${it.piece_rate.toFixed(2)})`);
+
             html += `
                 <div class="cart-item-row">
                     <div class="d-flex justify-content-between align-items-start">
@@ -811,13 +916,12 @@ function renderCartTray() {
                     </div>
                     <div class="d-flex justify-content-between align-items-center text-muted small mt-1">
                         <span>
-                            ${it.ctn_qty > 0 ? it.ctn_qty + ' Ctn' : ''} ${it.pcs_qty > 0 ? it.pcs_qty + ' Pcs' : ''} 
-                            (@ Rs. ${it.rate.toFixed(0)})
-                            ${it.discount > 0 ? '<span class="text-danger"> -Rs. ' + it.discount.toFixed(0) + '</span>' : ''}
+                            ${qtyDesc.join(' + ')}
+                            ${it.discount > 0 ? '<span class="text-danger ms-1">-Rs. ' + it.discount.toFixed(0) + '</span>' : ''}
                         </span>
                         <div>
-                            <button type="button" class="btn btn-sm btn-link p-0 text-primary me-2" onclick="editCartItem(${idx})"><i class="bi bi-pencil-square"></i></button>
-                            <button type="button" class="btn btn-sm btn-link p-0 text-danger" onclick="removeCartItem(${idx})"><i class="bi bi-trash"></i></button>
+                            <button type="button" class="btn btn-sm btn-link p-0 text-primary me-2" onclick="editCartItem(${idx})" title="Edit rate or qty"><i class="bi bi-pencil-square"></i></button>
+                            <button type="button" class="btn btn-sm btn-link p-0 text-danger" onclick="removeCartItem(${idx})" title="Remove item"><i class="bi bi-trash"></i></button>
                         </div>
                     </div>
                 </div>
@@ -827,7 +931,9 @@ function renderCartTray() {
                 <input type="hidden" name="prod_id[]" value="${it.product_id}">
                 <input type="hidden" name="ctn_qty[]" value="${it.ctn_qty}">
                 <input type="hidden" name="pcs_qty[]" value="${it.pcs_qty}">
-                <input type="hidden" name="rate[]" value="${it.rate}">
+                <input type="hidden" name="carton_rate[]" value="${it.carton_rate}">
+                <input type="hidden" name="piece_rate[]" value="${it.piece_rate}">
+                <input type="hidden" name="rate[]" value="${it.piece_rate}">
                 <input type="hidden" name="item_discount[]" value="${it.discount}">
             `;
         });

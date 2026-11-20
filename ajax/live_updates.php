@@ -18,6 +18,9 @@ $pdo = getDatabaseConnection();
 $currentUser = getCurrentUser();
 $roleSlug = $currentUser['role_slug'] ?? '';
 
+$systemMode = getSetting($pdo, 'system_operational_mode', 'hybrid');
+$isTraditionalMode = ($systemMode === 'traditional');
+
 // 1. Gather Section & Item Counters
 $counts = [
     'pending_orders' => 0,
@@ -31,8 +34,10 @@ $counts = [
 try {
     $counts['pending_orders'] = (int)$pdo->query("SELECT COUNT(*) FROM `sales_orders` WHERE `status` IN ('submitted', 'pending_approval')")->fetchColumn();
     $counts['ready_dispatch'] = (int)$pdo->query("SELECT COUNT(*) FROM `sales_orders` WHERE `status` = 'approved'")->fetchColumn();
-    $counts['pending_deliveries'] = (int)$pdo->query("SELECT COUNT(*) FROM `delivery_assignments` WHERE `status` IN ('assigned', 'in_transit')")->fetchColumn();
-    $counts['pending_returns'] = (int)$pdo->query("SELECT COUNT(*) FROM `sales_returns` WHERE `handover_status` = 'in_vehicle_custody'")->fetchColumn();
+    if (!$isTraditionalMode) {
+        $counts['pending_deliveries'] = (int)$pdo->query("SELECT COUNT(*) FROM `delivery_assignments` WHERE `status` IN ('assigned', 'in_transit')")->fetchColumn();
+        $counts['pending_returns'] = (int)$pdo->query("SELECT COUNT(*) FROM `sales_returns` WHERE `handover_status` = 'in_vehicle_custody'")->fetchColumn();
+    }
     $counts['quarantine_resell'] = (int)$pdo->query("SELECT COUNT(*) FROM `sales_returns` WHERE `handover_status` = 'handed_over_to_warehouse'")->fetchColumn();
     $counts['pending_handovers'] = (int)$pdo->query("SELECT COUNT(*) FROM `cash_handovers` WHERE `status` = 'pending'")->fetchColumn();
 } catch (Exception $e) {
@@ -40,7 +45,7 @@ try {
 }
 
 $sectionCounts = [
-    'secSales' => $counts['pending_orders'] + $counts['pending_deliveries'] + $counts['pending_returns'],
+    'secSales' => $counts['pending_orders'] + ($isTraditionalMode ? 0 : ($counts['pending_deliveries'] + $counts['pending_returns'])),
     'secWarehouse' => $counts['ready_dispatch'] + $counts['quarantine_resell'],
     'secFinance' => $counts['pending_handovers']
 ];
@@ -68,26 +73,28 @@ try {
     }
 } catch (Exception $e) {}
 
-// Recent Deliveries
-try {
-    $qDeliv = $pdo->query("
-        SELECT 
-            CONCAT('deliv_', da.id, '_', da.status) as act_id,
-            'delivery' as act_type,
-            CONCAT('Delivery #', da.dispatch_number) as title,
-            CONCAT(COALESCE(e.full_name, 'Delivery Driver'), ' updated delivery for ', c.shop_name, ' (', REPLACE(da.status, '_', ' '), ')') as description,
-            'secSales' as section,
-            UNIX_TIMESTAMP(da.created_at) as ts
-        FROM delivery_assignments da
-        JOIN sales_orders so ON da.sales_order_id = so.id
-        JOIN customers c ON so.customer_id = c.id
-        LEFT JOIN employees e ON da.delivery_man_id = e.id
-        ORDER BY da.id DESC LIMIT 4
-    ")->fetchAll();
-    if ($qDeliv) {
-        $activities = array_merge($activities, $qDeliv);
-    }
-} catch (Exception $e) {}
+// Recent Deliveries (Skip in Traditional Mode)
+if (!$isTraditionalMode) {
+    try {
+        $qDeliv = $pdo->query("
+            SELECT 
+                CONCAT('deliv_', da.id, '_', da.status) as act_id,
+                'delivery' as act_type,
+                CONCAT('Delivery #', da.dispatch_number) as title,
+                CONCAT(COALESCE(e.full_name, 'Delivery Driver'), ' updated delivery for ', c.shop_name, ' (', REPLACE(da.status, '_', ' '), ')') as description,
+                'secSales' as section,
+                UNIX_TIMESTAMP(da.created_at) as ts
+            FROM delivery_assignments da
+            JOIN sales_orders so ON da.sales_order_id = so.id
+            JOIN customers c ON so.customer_id = c.id
+            LEFT JOIN employees e ON da.delivery_man_id = e.id
+            ORDER BY da.id DESC LIMIT 4
+        ")->fetchAll();
+        if ($qDeliv) {
+            $activities = array_merge($activities, $qDeliv);
+        }
+    } catch (Exception $e) {}
+}
 
 // Recent Payments / Collections
 try {

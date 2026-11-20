@@ -190,6 +190,8 @@ $billTerms = getSetting($pdo, 'bill_terms_conditions', 'Goods once sold are non-
 
                 $conPkg = $multiplier > 1 ? '1*' . (int)$multiplier : '';
                 $boxType = ($ctnVal > 0) ? 'M' : '';
+                // When cartons are invoiced, display Carton Rate matching FMCG standard convention
+                $dispPrice = ($multiplier > 1 && $ctnVal > 0) ? round((float)$it['unit_price'] * $multiplier, 2) : (float)$it['unit_price'];
             ?>
             <tr>
                 <td class="col-product"><?= htmlspecialchars($it['product_name']) ?></td>
@@ -197,7 +199,7 @@ $billTerms = getSetting($pdo, 'bill_terms_conditions', 'Goods once sold are non-
                 <td style="text-align: center;"><?= $conPkg ?></td>
                 <td style="text-align: center;"><?= $boxType ?></td>
                 <td class="col-qty"><?= $looseVal !== '' ? $looseVal : '' ?></td>
-                <td class="col-price"><?= number_format((float)$it['unit_price'], 0) ?></td>
+                <td class="col-price"><?= number_format($dispPrice, 0) ?></td>
                 <td class="col-total"><?= number_format((float)($it['line_total'] ?? ($it['quantity'] * $it['unit_price'])), 0) ?></td>
             </tr>
             <?php endforeach; ?>

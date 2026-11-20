@@ -90,18 +90,45 @@ function recordStockMovement(
         }
     }
 
-    // Weighted Average Cost (WAC) recalculation on GRN or Inflow
-    if ($qtyIn > 0 && $newBalance > 0) {
-        // Calculate new weighted average purchase cost
-        $costStmt = $pdo->prepare("
-            SELECT COALESCE(SUM(total_cost), 0) / NULLIF(SUM(quantity_in), 0)
-            FROM `stock_ledger`
-            WHERE `product_id` = ? AND `movement_type` IN ('purchase_grn', 'adjustment_in')
-        ");
-        $costStmt->execute([$productId]);
-        $avgCost = (float)$costStmt->fetchColumn();
-        if ($avgCost > 0) {
-            $pdo->prepare("UPDATE `products` SET `purchase_price` = ? WHERE id = ?")->execute([round($avgCost, 2), $productId]);
+    // Weighted Average Cost (Moving WAC) recalculation on GRN / Purchase / Inflow
+    if ($qtyIn > 0 && $newBalance > 0 && in_array($movementType, ['purchase_grn', 'adjustment_in'])) {
+        $oldPriceStmt = $pdo->prepare("SELECT purchase_price, name FROM `products` WHERE id = ?");
+        $oldPriceStmt->execute([$productId]);
+        $prodRow = $oldPriceStmt->fetch();
+        $oldPrice = (float)($prodRow['purchase_price'] ?? 0);
+
+        $priorStock = max(0, $newBalance - $qtyIn);
+        $incomingCost = (float)$totalCost;
+        if ($incomingCost <= 0 && $unitCost > 0) {
+            $incomingCost = $qtyIn * (float)$unitCost;
+        }
+
+        if ($priorStock > 0 && $oldPrice > 0) {
+            $totalInventoryValue = ($priorStock * $oldPrice) + $incomingCost;
+            $newWac = round($totalInventoryValue / $newBalance, 2);
+        } else {
+            $newWac = $qtyIn > 0 ? round($incomingCost / $qtyIn, 2) : $oldPrice;
+        }
+
+        if ($newWac > 0 && abs($newWac - $oldPrice) >= 0.005) {
+            $pdo->prepare("UPDATE `products` SET `purchase_price` = ? WHERE id = ?")->execute([$newWac, $productId]);
+
+            // Log WAC recalculation to audit log as requested
+            if (function_exists('logAudit')) {
+                logAudit($pdo, 'products', $productId, 'wac_cost_update', [
+                    'old_purchase_price' => $oldPrice,
+                    'prior_stock' => $priorStock,
+                    'movement_type' => $movementType,
+                    'ref_type' => $refType,
+                    'ref_id' => $refId
+                ], [
+                    'new_purchase_price' => $newWac,
+                    'incoming_qty' => $qtyIn,
+                    'incoming_total_cost' => $incomingCost,
+                    'new_total_stock' => $newBalance,
+                    'product_name' => $prodRow['name'] ?? "Product #{$productId}"
+                ]);
+            }
         }
     }
 

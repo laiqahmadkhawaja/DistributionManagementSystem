@@ -19,10 +19,15 @@ $pendingDeliveriesCount = 0;
 $pendingStockHandoverCount = 0;
 $pendingCashHandoversCount = 0;
 
+$systemMode = getSetting($pdo, 'system_operational_mode', 'hybrid');
+$isTraditionalMode = ($systemMode === 'traditional');
+
 try {
     $pendingOrdersCount = (int)$pdo->query("SELECT COUNT(*) FROM `sales_orders` WHERE `status` IN ('submitted', 'pending_approval')")->fetchColumn();
     $readyDispatchCount = (int)$pdo->query("SELECT COUNT(*) FROM `sales_orders` WHERE `status` = 'approved'")->fetchColumn();
-    $pendingDeliveriesCount = (int)$pdo->query("SELECT COUNT(*) FROM `delivery_assignments` WHERE `status` IN ('assigned', 'in_transit')")->fetchColumn();
+    if (!$isTraditionalMode) {
+        $pendingDeliveriesCount = (int)$pdo->query("SELECT COUNT(*) FROM `delivery_assignments` WHERE `status` IN ('assigned', 'in_transit')")->fetchColumn();
+    }
     $pendingStockHandoverCount = (int)$pdo->query("SELECT COUNT(*) FROM `sales_returns` WHERE `handover_status` = 'handed_over_to_warehouse'")->fetchColumn();
     $pendingCashHandoversCount = (int)$pdo->query("SELECT COUNT(*) FROM `cash_handovers` WHERE `status` = 'pending'")->fetchColumn();
 } catch (Exception $e) {
@@ -164,6 +169,11 @@ if (!$anySectionActive) {
                     <i class="bi bi-people-fill text-secondary"></i> <span>Import Shops & Balances</span>
                 </a>
             </li>
+            <li class="nav-item">
+                <a class="nav-link <?= $isPageActive('modules/products/categories.php') ? 'active' : '' ?>" href="<?= BASE_URL ?>/modules/products/categories.php">
+                    <i class="bi bi-tags-fill text-warning"></i> <span>Manage Categories</span>
+                </a>
+            </li>
         </ul>
 
         <!-- ==========================================
@@ -216,6 +226,7 @@ if (!$anySectionActive) {
                         <i class="bi bi-box-arrow-in-left"></i> Shop Returns Entry
                     </a>
                 </li>
+                <?php if (!$isTraditionalMode): ?>
                 <li class="nav-item">
                     <a class="nav-link justify-content-between <?= $isPageActive(['modules/delivery/index.php', 'modules/delivery/deliver.php']) ? 'active' : '' ?>" href="<?= BASE_URL ?>/modules/delivery/index.php">
                         <span><i class="bi bi-truck-flatbed"></i> Delivery Man App</span>
@@ -223,8 +234,9 @@ if (!$anySectionActive) {
                     </a>
                 </li>
                 <?php endif; ?>
+                <?php endif; ?>
 
-                <?php if (hasPermission('orders', 'create') || $roleSlug === ROLE_ORDER_BOOKER || $roleSlug === ROLE_SALESMAN): ?>
+                <?php if (!$isTraditionalMode && (hasPermission('orders', 'create') || $roleSlug === ROLE_ORDER_BOOKER || $roleSlug === ROLE_SALESMAN)): ?>
                 <li class="nav-item">
                     <a class="nav-link <?= $isPageActive('modules/orders/book.php') ? 'active' : '' ?>" href="<?= BASE_URL ?>/modules/orders/book.php">
                         <i class="bi bi-cart-plus-fill"></i> Order Booker Mobile App

@@ -212,6 +212,26 @@ require_once dirname(__DIR__, 2) . '/includes/header.php';
     </div>
 </div>
 
+<?php
+$systemMode = getSetting($pdo, 'system_operational_mode', 'hybrid');
+$isTraditionalMode = ($systemMode === 'traditional');
+if ($isTraditionalMode): ?>
+<div class="alert alert-warning border-warning shadow-sm rounded-3 mb-3 p-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
+    <div>
+        <strong class="d-block text-dark"><i class="bi bi-info-circle-fill text-warning me-1"></i> Traditional Desktop FMCG Mode is Active</strong>
+        <span class="small text-muted">You are operating in paper-assisted distribution mode. Deliveries, cash recoveries and shop returns are balanced at the end of the day via the Run Sheet Reconciliation desk.</span>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="<?= BASE_URL ?>/modules/delivery/sheet_reconcile.php" class="btn btn-sm btn-primary">
+            <i class="bi bi-cash-stack me-1"></i> Go to Cash Reconciliation
+        </a>
+        <a href="<?= BASE_URL ?>/modules/delivery/sheet_print.php" target="_blank" class="btn btn-sm btn-outline-dark">
+            <i class="bi bi-printer me-1"></i> Print Delivery Run Sheet
+        </a>
+    </div>
+</div>
+<?php endif; ?>
+
 <!-- Driver Daily KPI Cards Grid -->
 <div class="row g-2 mb-3">
     <div class="col-6 col-md-3">
